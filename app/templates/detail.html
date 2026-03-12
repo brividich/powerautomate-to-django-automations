@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}{{ record.package.input.flow_name }} | Conversion Studio{% endblock %}
+
+{% block content %}
+<div class="btn-row" style="margin-bottom:18px;">
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna allo Storico</a>
+  <a class="btn" href="{{ url_for('conversion_package_download', record_id=record.record_id) }}">Scarica Package</a>
+  <form method="post" action="{{ url_for('conversion_apply_remediation', record_id=record.record_id) }}">
+    <button class="btn" type="submit">Applica Remediation</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Dettaglio Conversione</div>
+  </div>
+  <div class="card-body grid">
+    <div class="meta">
+      <strong>{{ record.package.input.flow_name }}</strong><br>
+      File: <code>{{ record.filename }}</code><br>
+      ID conversione: <code>{{ record.record_id }}</code><br>
+      Creato: {{ record.created_at }}<br>
+      Sorgente candidata: <code>{{ record.package.source_candidate.source_code }}</code> ({{ record.package.source_candidate.confidence }})<br>
+      {{ record.package.source_candidate.reason }}
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">Compatibilita'</div>
+        <div class="stat-value">
+          <span class="pill {% if record.package.compatibility.status == 'full' %}pill-full{% else %}pill-partial{% endif %}">
+            {{ record.package.compatibility.status }}
+          </span>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Issue</div>
+        <div class="stat-value">{{ record.package.issues|length }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Regole Proposte</div>
+        <div class="stat-value">{{ record.package.proposed_rules|length }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Remediation</div>
+        <div class="stat-value">{{ record.remediations_applied|length }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:18px;">
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Incongruenze e Remediation</div>
+      </div>
+      <div class="card-body">
+        <div class="issues">
+          {% for issue in record.package.issues %}
+            <div class="issue">
+              <div class="btn-row" style="margin-bottom:8px;">
+                <span class="pill pill-{{ issue.severity }}">{{ issue.severity }}</span>
+                <code>{{ issue.code }}</code>
+              </div>
+              <strong>{{ issue.title }}</strong>
+              <div class="meta" style="margin-top:8px;">{{ issue.detail }}</div>
+              <div class="meta" style="margin-top:8px;"><strong>Remediation:</strong> {{ issue.remediation }}</div>
+            </div>
+          {% else %}
+            <div class="meta">Nessuna issue rilevata.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Remediation Applicate</div>
+      </div>
+      <div class="card-body">
+        <div class="issues">
+          {% for item in record.remediations_applied %}
+            <div class="issue">
+              <strong>{{ item.label }}</strong>
+              <div class="meta">{{ item.detail }}</div>
+              <div class="meta"><code>{{ item.code }}</code> - {{ item.applied_at }}</div>
+            </div>
+          {% else %}
+            <div class="meta">Nessuna remediation applicata a questo record.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Riepilogo Tecnico</div>
+      </div>
+      <div class="card-body stats">
+        <div class="stat">
+          <div class="stat-label">Trigger</div>
+          <div class="stat-value">{{ record.package.trigger_summary|length }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Azioni Top Level</div>
+          <div class="stat-value">{{ record.package.action_summary.top_level_action_count }}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Azioni Flatten</div>
+          <div class="stat-value">{{ record.package.action_summary.flattened_action_count }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Mapping Campi</div>
+      </div>
+      <div class="card-body table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Power Automate</th>
+              <th>Target</th>
+              <th>Confidenza</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for source_field, mapping in record.package.field_mapping_candidates.items() %}
+              <tr>
+                <td><code>{{ source_field }}</code></td>
+                <td><code>{{ mapping.target_field }}</code></td>
+                <td>{{ mapping.confidence }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="3">Nessun mapping candidato disponibile.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="card-head">
+    <div class="card-title">Regole Draft Proposte</div>
+  </div>
+  <div class="card-body">
+    <div class="rule-list">
+      {% for rule in record.package.proposed_rules %}
+        <div class="rule">
+          <h3>{{ rule.name }}</h3>
+          <div class="meta">
+            <code>{{ rule.code }}</code><br>
+            Trigger: <code>{{ rule.source_code }}.{{ rule.operation_type }}.{{ rule.trigger_scope }}</code>
+            {% if rule.watched_field %}<br>Watched field: <code>{{ rule.watched_field }}</code>{% endif %}
+          </div>
+          <div class="table-wrap" style="margin-top:12px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Condizioni</th>
+                  <th>Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    {% for condition in rule.conditions %}
+                      <div><code>{{ condition.field_name }}</code> {{ condition.operator }} <code>{{ condition.expected_value or "-" }}</code></div>
+                    {% else %}
+                      <div>-</div>
+                    {% endfor %}
+                  </td>
+                  <td>
+                    {% for action in rule.actions %}
+                      <div><code>{{ action.action_type }}</code> - {{ action.description }}</div>
+                    {% else %}
+                      <div>-</div>
+                    {% endfor %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% else %}
+        <div class="meta">Nessuna regola proposta nel package.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="card-head">
+    <div class="card-title">Package JSON</div>
+  </div>
+  <div class="card-body">
+    <details>
+      <summary>Apri package completo</summary>
+      <pre>{{ record.package | tojson(indent=2) }}</pre>
+    </details>
+  </div>
+</div>
+{% endblock %}
