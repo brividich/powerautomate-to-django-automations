@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+app/__pycache__/
+tests/__pycache__/
+*.pyc
+output/
+.pytest_cache/
+
+input/*
+!input/.gitkeep
+!input/flows/
+input/flows/*
+!input/flows/.gitkeep
+!input/schema_pack/
+input/schema_pack/*
+!input/schema_pack/.gitkeep

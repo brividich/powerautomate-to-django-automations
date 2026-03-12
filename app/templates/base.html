@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Conversione Power Automate{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --panel: #fffdf8;
+      --text: #16202a;
+      --muted: #5b6673;
+      --line: #d9d1c2;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --warn: #92400e;
+      --warn-soft: #fef3c7;
+      --error: #991b1b;
+      --error-soft: #fee2e2;
+      --ok: #166534;
+      --ok-soft: #dcfce7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: linear-gradient(180deg, #f6f3ea 0%, #ece5d6 100%); color: var(--text); }
+    a { color: inherit; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }
+    .hero { display: grid; gap: 12px; margin-bottom: 24px; }
+    .eyebrow { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+    .hero h1 { margin: 0; font-size: clamp(2rem, 5vw, 4rem); line-height: .95; }
+    .hero p { margin: 0; max-width: 900px; font-size: 18px; line-height: 1.6; color: var(--muted); }
+    .grid { display: grid; gap: 18px; }
+    .card { background: rgba(255, 253, 248, .92); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 20px 50px rgba(40, 32, 18, .08); overflow: hidden; }
+    .card-head { padding: 18px 22px 10px; border-bottom: 1px solid rgba(217, 209, 194, .7); }
+    .card-title { font-size: 13px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+    .card-body { padding: 20px 22px 24px; }
+    .flash-wrap { display: grid; gap: 10px; margin-bottom: 18px; }
+    .flash { border-radius: 16px; padding: 12px 14px; font-size: 14px; border: 1px solid var(--line); }
+    .flash-success { background: var(--ok-soft); color: var(--ok); border-color: #86efac; }
+    .flash-error { background: var(--error-soft); color: var(--error); border-color: #fca5a5; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { appearance: none; border: 1px solid var(--text); background: var(--text); color: #fffdf8; border-radius: 999px; padding: 11px 16px; cursor: pointer; text-decoration: none; font-size: 14px; }
+    .btn-secondary { background: transparent; color: var(--text); }
+    .field { display: grid; gap: 8px; }
+    .field input[type=file] { border: 1px dashed var(--line); border-radius: 18px; padding: 14px; background: #fff; }
+    .split { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; }
+    .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    .stat { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: #fff; }
+    .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .stat-value { margin-top: 8px; font-size: 28px; font-weight: 700; }
+    .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .pill-partial { background: var(--warn-soft); color: var(--warn); }
+    .pill-full { background: var(--ok-soft); color: var(--ok); }
+    .pill-high { background: var(--error-soft); color: var(--error); }
+    .pill-medium { background: var(--warn-soft); color: var(--warn); }
+    .pill-low { background: var(--accent-soft); color: var(--accent); }
+    .records, .issues, .rule-list { display: grid; gap: 12px; }
+    .record, .issue, .rule { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: #fff; }
+    .record h3, .rule h3 { margin: 0 0 8px; font-size: 20px; }
+    .meta { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5; }
+    details summary { cursor: pointer; font-weight: 700; }
+    @media (max-width: 900px) {
+      .split { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="eyebrow">Standalone Converter</div>
+      <h1>Power Automate<br>Conversion Studio</h1>
+      <p>Carica un export `.zip`, ottieni analisi tecnica, incongruenze, remediation applicabile e package pronto per il portale Django.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

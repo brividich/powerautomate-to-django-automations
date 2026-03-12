@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Conversion Studio | Power Automate{% endblock %}
+
+{% block content %}
+<div class="split">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Nuova Conversione</div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('convert') }}" enctype="multipart/form-data" class="grid">
+        <div class="field">
+          <label for="flow_file">Flow Power Automate</label>
+          <input id="flow_file" name="flow_file" type="file" accept=".zip,.json" required>
+        </div>
+        <div class="meta">
+          La conversione salva uno storico locale, genera package JSON, preview Markdown e un dettaglio navigabile con remediation applicabile.
+        </div>
+        <div class="btn-row">
+          <button class="btn" type="submit">Analizza e Converti</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Funzioni</div>
+    </div>
+    <div class="card-body grid">
+      <div class="meta">1. Upload `.zip` / `.json` Power Automate</div>
+      <div class="meta">2. Analisi trigger, azioni, connettori e campi</div>
+      <div class="meta">3. Storico conversioni con pagina dettaglio dedicata</div>
+      <div class="meta">4. Remediation automatica per casi `assenze` piu' comuni</div>
+      <div class="meta">5. Download package finale pronto per il portale Django</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="card-head">
+    <div class="card-title">Storico Conversioni</div>
+  </div>
+  <div class="card-body">
+    <div class="records">
+      {% for record in records %}
+        <div class="record">
+          <h3><a href="{{ url_for('conversion_detail', record_id=record.record_id) }}">{{ record.package.input.flow_name }}</a></h3>
+          <div class="meta">
+            File: <code>{{ record.filename }}</code><br>
+            Creato: {{ record.created_at }}<br>
+            Sorgente candidata: <code>{{ record.package.source_candidate.source_code }}</code><br>
+            Compatibilita':
+            <span class="pill {% if record.package.compatibility.status == 'full' %}pill-full{% else %}pill-partial{% endif %}">
+              {{ record.package.compatibility.status }}
+            </span>
+          </div>
+          <div class="btn-row" style="margin-top:12px;">
+            <a class="btn btn-secondary" href="{{ url_for('conversion_detail', record_id=record.record_id) }}">Apri Dettaglio</a>
+            <a class="btn" href="{{ url_for('conversion_package_download', record_id=record.record_id) }}">Scarica Package</a>
+          </div>
+        </div>
+      {% else %}
+        <div class="meta">Nessuna conversione salvata nello storico.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
