@@ -22,6 +22,10 @@ FIELD_MAPPING_CANDIDATES = {
 }
 
 
+def _safe_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _iter_actions(actions: dict[str, Any], *, parent: str | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for action_name, action_def in actions.items():
@@ -57,18 +61,16 @@ def _iter_actions(actions: dict[str, Any], *, parent: str | None = None) -> list
 
 def _collect_connectors(raw_flow: dict[str, Any], actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     connection_refs = (
-        raw_flow.get("properties", {}).get("connectionReferences", {})
+        _safe_dict(_safe_dict(raw_flow.get("properties")).get("connectionReferences"))
         if isinstance(raw_flow.get("properties"), dict)
         else {}
     )
     usage = Counter()
 
     for row in actions:
+        definition = _safe_dict(row.get("definition"))
         connection_name = (
-            row["definition"]
-            .get("inputs", {})
-            .get("host", {})
-            .get("connection", {})
+            _safe_dict(_safe_dict(_safe_dict(definition.get("inputs")).get("host")).get("connection"))
             .get("name")
         )
         if not isinstance(connection_name, str):
@@ -80,11 +82,14 @@ def _collect_connectors(raw_flow: dict[str, Any], actions: list[dict[str, Any]])
 
     connectors: list[dict[str, Any]] = []
     for key, ref in connection_refs.items():
+        ref_dict = _safe_dict(ref)
+        if not ref_dict:
+            continue
         connectors.append(
             {
                 "key": key,
-                "api_name": str(ref.get("apiName", "")),
-                "display_name": str(ref.get("apiName", "")),
+                "api_name": str(ref_dict.get("apiName", "")),
+                "display_name": str(ref_dict.get("apiName", "")),
                 "usage_count": int(usage.get(key, 0)),
             }
         )

@@ -4,7 +4,14 @@ Questo progetto segue un changelog semplice in stile semver, pensato per un repo
 
 ## Unreleased
 
-- Nessuna modifica ancora rilasciata dopo `0.1.0-dev`.
+- Nessuna modifica ancora rilasciata dopo `0.1.1-dev`.
+
+## 0.1.1-dev - 2026-03-12
+
+- **[fix] Parsing difensivo su export anomali**: resa tollerante l'analisi di flow `.zip` / `.json` con blocchi non conformi, ad esempio trigger, azioni o `connectionReferences` serializzati come stringhe invece che come oggetti.
+- **[fix] Errore `str.get` in conversione**: eliminato il crash `Analisi fallita: 'str' object has no attribute 'get'` riscontrato con nuovi export Power Automate come `newOP`.
+- **[improvement] Diagnostica webapp**: aggiunto logging dell'eccezione lato Flask per facilitare il debug dei casi non coperti dal parser.
+- **[test] Copertura su zip malformati**: introdotto un test che valida il comportamento della conversione su workflow con shape non standard.
 
 ## 0.1.0-dev - 2026-03-12
 

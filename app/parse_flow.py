@@ -4,6 +4,11 @@ from pathlib import Path
 import io
 import json
 import zipfile
+from typing import Any
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _find_workflow_json_in_zip(zip_path: Path) -> dict:
@@ -44,7 +49,7 @@ def _normalize_arm_or_workflow(data: dict) -> dict:
     if "definition" in data:
         return {
             "name": data.get("name", "flow_sconosciuto"),
-            "definition": data.get("definition", {}),
+            "definition": _as_dict(data.get("definition")),
             "raw": data,
         }
 
@@ -52,7 +57,7 @@ def _normalize_arm_or_workflow(data: dict) -> dict:
         props = data["properties"]
         return {
             "name": props.get("displayName") or data.get("name", "flow_sconosciuto"),
-            "definition": props.get("definition", {}),
+            "definition": _as_dict(props.get("definition")),
             "raw": data,
         }
 
@@ -63,15 +68,34 @@ def _normalize_arm_or_workflow(data: dict) -> dict:
         if not isinstance(res, dict):
             continue
         if res.get("type") in {"Microsoft.Logic/workflows", "Microsoft.Flow/flows"}:
-            props = res.get("properties", {})
-            details = res.get("details", {})
+            props = _as_dict(res.get("properties"))
+            details = _as_dict(res.get("details"))
             return {
                 "name": details.get("displayName") or res.get("name", "flow_sconosciuto"),
-                "definition": props.get("definition", {}),
+                "definition": _as_dict(props.get("definition")),
                 "raw": data,
             }
 
     raise ValueError("Workflow definition non trovata")
+
+
+def _build_flow_payload(wf: dict[str, Any]) -> dict[str, Any]:
+    definition = _as_dict(wf.get("definition"))
+    flow_name = str(wf.get("name") or "flow_sconosciuto")
+
+    return {
+        "flow_name": flow_name,
+        "flow_slug": (
+            flow_name
+            .lower()
+            .replace(" ", "_")
+            .replace("/", "_")
+            .replace("\\", "_")
+        ),
+        "triggers": _as_dict(definition.get("triggers")),
+        "actions": _as_dict(definition.get("actions")),
+        "raw": _as_dict(wf.get("raw")),
+    }
 
 
 def load_flow_definition(path: Path) -> dict:
@@ -83,21 +107,7 @@ def load_flow_definition(path: Path) -> dict:
         raise ValueError(f"Formato non supportato: {path.suffix}")
 
     wf = _normalize_arm_or_workflow(data)
-    definition = wf["definition"]
-
-    return {
-        "flow_name": wf["name"],
-        "flow_slug": (
-            wf["name"]
-            .lower()
-            .replace(" ", "_")
-            .replace("/", "_")
-            .replace("\\", "_")
-        ),
-        "triggers": definition.get("triggers", {}),
-        "actions": definition.get("actions", {}),
-        "raw": wf["raw"],
-    }
+    return _build_flow_payload(wf)
 
 
 def load_flow_definition_from_bytes(filename: str, payload: bytes) -> dict:
@@ -137,18 +147,4 @@ def load_flow_definition_from_bytes(filename: str, payload: bytes) -> dict:
         raise ValueError(f"Formato non supportato: {suffix}")
 
     wf = _normalize_arm_or_workflow(data)
-    definition = wf["definition"]
-
-    return {
-        "flow_name": wf["name"],
-        "flow_slug": (
-            wf["name"]
-            .lower()
-            .replace(" ", "_")
-            .replace("/", "_")
-            .replace("\\", "_")
-        ),
-        "triggers": definition.get("triggers", {}),
-        "actions": definition.get("actions", {}),
-        "raw": wf["raw"],
-    }
+    return _build_flow_payload(wf)

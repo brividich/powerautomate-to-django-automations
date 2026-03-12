@@ -28,6 +28,10 @@ def _walk_fields(obj: Any, found_fields: set[str]) -> None:
             found_fields.add(match)
 
 
+def _safe_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
 def _collect_actions(
     actions: dict[str, Any],
     action_rows: list[dict],
@@ -105,12 +109,13 @@ def _collect_actions(
 def extract_trigger_summary(triggers: dict) -> list[dict]:
     rows = []
     for name, trigger in triggers.items():
+        trigger_dict = _safe_dict(trigger)
         rows.append(
             {
                 "name": name,
-                "type": trigger.get("type", ""),
-                "kind": trigger.get("kind", ""),
-                "inputs": trigger.get("inputs", {}),
+                "type": trigger_dict.get("type", ""),
+                "kind": trigger_dict.get("kind", ""),
+                "inputs": _safe_dict(trigger_dict.get("inputs")),
             }
         )
     return rows
