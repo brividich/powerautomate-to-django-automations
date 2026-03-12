@@ -4,7 +4,13 @@ Questo progetto segue un changelog semplice in stile semver, pensato per un repo
 
 ## Unreleased
 
-- Nessuna modifica ancora rilasciata dopo `0.1.1-dev`.
+- Nessuna modifica ancora rilasciata dopo `0.1.1`.
+
+## 0.1.1 - 2026-03-12
+
+- **[release] Prima release stabile della standalone**: pubblicata su `main` la app web locale per analisi, conversione guidata, storico e remediation di export Power Automate.
+- **[fix] Robustezza su export anomali**: inclusa la correzione al crash `Analisi fallita: 'str' object has no attribute 'get'` e il parsing difensivo di trigger, azioni e `connectionReferences` non conformi.
+- **[test] Verifica consolidata**: confermata la copertura base della standalone, compreso il caso di workflow con shape anomala come `newOP`.
 
 ## 0.1.1-dev - 2026-03-12
 
