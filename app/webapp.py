@@ -37,6 +37,7 @@ def create_app() -> Flask:
             record = analyze_flow_upload(filename, payload)
             save_record(record)
         except Exception as exc:
+            app.logger.exception("Errore durante l'analisi del flow '%s'", filename)
             flash(f"Analisi fallita: {exc}", "error")
             return redirect(url_for("index"))
 
