@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Connessione SQL Server | Conversion Studio{% endblock %}
+
+{% block content %}
+<div class="btn-row" style="margin-bottom:18px;">
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna alla Home</a>
+  {% if wizard.has_connection %}
+    <a class="btn btn-secondary" href="{{ url_for('wizard_sqlserver_tables') }}">Vai alle Tabelle</a>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Step 1 · Connessione SQL Server</div>
+  </div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('wizard_sqlserver_connect') }}" class="grid">
+      <div class="field">
+        <label for="driver">Driver ODBC</label>
+        <select id="driver" name="driver" required>
+          {% for driver in drivers %}
+            <option value="{{ driver }}" {% if form_data.driver == driver %}selected{% endif %}>{{ driver }}</option>
+          {% endfor %}
+        </select>
+        <div class="meta">Usa preferibilmente <code>ODBC Driver 18 for SQL Server</code>. Il driver legacy <code>SQL Server</code> ha supporto limitato.</div>
+      </div>
+
+      <div class="split">
+        <div class="field">
+          <label for="server">Server</label>
+          <input id="server" name="server" type="text" placeholder="localhost oppure sql01\\SQLEXPRESS" value="{{ form_data.server }}" required>
+          <div class="meta">Esempi: <code>localhost\\SQLEXPRESS</code> oppure <code>sql01</code>.</div>
+        </div>
+        <div class="field">
+          <label for="port">Porta opzionale</label>
+          <input id="port" name="port" type="text" placeholder="1433" value="{{ form_data.port }}">
+          <div class="meta">Compilala solo se usi un server senza istanza nominata. Non insieme a <code>\\SQLEXPRESS</code>.</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="database">Database</label>
+        <input id="database" name="database" type="text" placeholder="nome_database" value="{{ form_data.database }}" required>
+      </div>
+
+      <div class="field">
+        <label>Autenticazione</label>
+        <div class="radio-wrap">
+          <label class="radio-card">
+            <input type="radio" name="auth_mode" value="sql" {% if not form_data.integrated_security %}checked{% endif %}>
+            SQL Server Authentication
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="auth_mode" value="integrated" {% if form_data.integrated_security %}checked{% endif %}>
+            Windows Integrated Security
+          </label>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" value="{{ form_data.username }}" placeholder="utente_sql">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" value="{{ form_data.password }}">
+        </div>
+      </div>
+
+      {% if show_modern_security_options %}
+        <label class="checkbox">
+          <input type="checkbox" name="encrypt" {% if form_data.encrypt %}checked{% endif %}>
+          Abilita `Encrypt`
+        </label>
+
+        <label class="checkbox">
+          <input type="checkbox" name="trust_server_certificate" {% if form_data.trust_server_certificate %}checked{% endif %}>
+          Abilita `TrustServerCertificate`
+        </label>
+      {% else %}
+        <div class="meta">
+          Il driver <code>{{ form_data.driver }}</code> e' legacy: le opzioni moderne SSL non vengono inviate nella stringa di connessione.
+        </div>
+      {% endif %}
+
+      <label class="checkbox">
+        <input type="checkbox" name="remember_connection" {% if form_data.remember_connection %}checked{% endif %}>
+        Ricorda questa connessione in un file locale ignorato da Git
+      </label>
+
+      <div class="meta">
+        La connessione viene tenuta in memoria locale per la sessione corrente. Dopo il test riuscito passerai alla scelta della tabella.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" type="submit">Testa e Prosegui</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -4,7 +4,11 @@ Questo progetto segue un changelog semplice in stile semver, pensato per un repo
 
 ## Unreleased
 
-- Nessuna modifica ancora rilasciata dopo `0.1.1`.
+- **[feature] Wizard SQL Server guidato**: la standalone ora parte da una connessione guidata a SQL Server, mostra le tabelle disponibili e permette di scegliere la tabella target prima del caricamento del flow.
+- **[feature] Mapping visuale confermabile**: aggiunta la revisione visiva del merge `campo Power Automate -> colonna database`, con conferma o correzione manuale direttamente dalla UI.
+- **[feature] Apprendimento locale dei mapping**: le conferme dell'utente vengono salvate in memoria locale e riutilizzate per aumentare la confidenza dei suggerimenti futuri.
+- **[improvement] Test indipendenti da file locali**: i test ora usano fixture sintetiche in memoria invece di dipendere da zip non versionati nel workspace.
+- **[docs] README aggiornato**: documentati requisiti ODBC, procedura guidata, apprendimento locale e nuovo flusso operativo.
 
 ## 0.1.1 - 2026-03-12
 

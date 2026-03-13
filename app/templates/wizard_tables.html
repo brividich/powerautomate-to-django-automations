@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Seleziona Tabella | Conversion Studio{% endblock %}
+
+{% block content %}
+<div class="btn-row" style="margin-bottom:18px;">
+  <a class="btn btn-secondary" href="{{ url_for('wizard_sqlserver') }}">Modifica Connessione</a>
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna alla Home</a>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Step 2 · Scegli la tabella target</div>
+  </div>
+  <div class="card-body grid">
+    <form method="get" action="{{ url_for('wizard_sqlserver_tables') }}" class="split">
+      <div class="field">
+        <label for="q">Filtra tabelle</label>
+        <input id="q" name="q" type="text" value="{{ query }}" placeholder="schema o nome tabella">
+      </div>
+      <div class="btn-row" style="align-items:end;">
+        <button class="btn" type="submit">Filtra</button>
+      </div>
+    </form>
+
+    <div class="meta">
+      Seleziona la tabella su cui vuoi fare il merge dei campi del flow. La scelta verra' usata per proporre automaticamente il mapping colonna per colonna.
+    </div>
+
+    <form method="post" action="{{ url_for('wizard_sqlserver_select_table') }}">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Schema</th>
+              <th>Tabella</th>
+              <th>Colonne</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for table in tables %}
+              <tr>
+                <td><input type="radio" name="table_name" value="{{ table.schema }}|{{ table.table }}" {% if wizard.selected_table.full_name == table.full_name %}checked{% endif %} required></td>
+                <td><code>{{ table.schema }}</code></td>
+                <td><strong>{{ table.table }}</strong></td>
+                <td>{{ table.column_count }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4">Nessuna tabella trovata con il filtro corrente.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn" type="submit">Conferma Tabella</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -2,3 +2,4 @@ pydantic
 requests
 python-dotenv
 flask
+pyodbc

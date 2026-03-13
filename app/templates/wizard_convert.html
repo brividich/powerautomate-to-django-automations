@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Carica Flow | Conversion Studio{% endblock %}
+
+{% block content %}
+<div class="btn-row" style="margin-bottom:18px;">
+  <a class="btn btn-secondary" href="{{ url_for('wizard_sqlserver_tables') }}">Cambia Tabella</a>
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna alla Home</a>
+</div>
+
+<div class="split">
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Step 3 · Carica il flow Power Automate</div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('convert') }}" enctype="multipart/form-data" class="grid">
+        <div class="field">
+          <label for="flow_file">Flow Power Automate</label>
+          <input id="flow_file" name="flow_file" type="file" accept=".zip,.json" required>
+        </div>
+        <div class="meta">
+          La conversione usera' la tabella <code>{{ target_context.full_name }}</code> per proporre il merge dei campi del flow con le colonne reali del database.
+        </div>
+        <div class="btn-row">
+          <button class="btn" type="submit">Analizza e Prepara Mapping</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Tabella Selezionata</div>
+    </div>
+    <div class="card-body">
+      <div class="meta">
+        Server: <code>{{ target_context.server }}</code><br>
+        Database: <code>{{ target_context.database }}</code><br>
+        Tabella: <code>{{ target_context.full_name }}</code><br>
+        Colonne rilevate: <strong>{{ target_context.columns|length }}</strong>
+      </div>
+      <div class="table-wrap" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Colonna</th>
+              <th>Tipo</th>
+              <th>PK</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for column in target_context.columns %}
+              <tr>
+                <td><code>{{ column.name }}</code></td>
+                <td>{{ column.data_type }}</td>
+                <td>{% if column.is_primary_key %}si{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

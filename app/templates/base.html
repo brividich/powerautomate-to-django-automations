@@ -40,9 +40,15 @@
     .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn { appearance: none; border: 1px solid var(--text); background: var(--text); color: #fffdf8; border-radius: 999px; padding: 11px 16px; cursor: pointer; text-decoration: none; font-size: 14px; }
     .btn-secondary { background: transparent; color: var(--text); }
+    .btn-ghost { background: rgba(255,255,255,.55); color: var(--text); border-color: var(--line); }
     .field { display: grid; gap: 8px; }
     .field input[type=file] { border: 1px dashed var(--line); border-radius: 18px; padding: 14px; background: #fff; }
+    .field input[type=text], .field input[type=password], .field select { width: 100%; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; color: var(--text); font: inherit; }
+    .checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+    .radio-wrap { display: flex; gap: 10px; flex-wrap: wrap; }
+    .radio-card { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; min-width: 220px; }
     .split { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; }
+    .triple { display: grid; gap: 18px; grid-template-columns: repeat(3, 1fr); }
     .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .stat { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: #fff; }
     .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
@@ -56,15 +62,46 @@
     .records, .issues, .rule-list { display: grid; gap: 12px; }
     .record, .issue, .rule { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: #fff; }
     .record h3, .rule h3 { margin: 0 0 8px; font-size: 20px; }
+    .step { border: 1px solid var(--line); border-radius: 20px; padding: 16px; background: #fff; }
+    .step strong { display: block; margin-bottom: 6px; }
     .meta { color: var(--muted); font-size: 14px; line-height: 1.6; }
     .table-wrap { overflow: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
     th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .card-subtitle { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+    .pairing-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; align-items: start; }
+    .pairing-palette { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.65); position: sticky; top: 18px; }
+    .token-list { display: grid; gap: 10px; }
+    .drag-token { border: 1px dashed var(--line); border-radius: 16px; padding: 12px; background: #fff; cursor: grab; display: grid; gap: 4px; }
+    .drag-token strong { font-size: 14px; }
+    .drag-token span { font-size: 12px; color: var(--muted); }
+    .drag-token.is-dragging { opacity: .55; }
+    .pairing-board { display: grid; gap: 12px; }
+    .pairing-dropzone { border: 1px dashed var(--line); border-radius: 16px; background: #fff; padding: 12px; min-height: 86px; display: grid; gap: 8px; }
+    .pairing-dropzone.is-over { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, .12); }
+    .dropzone-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .dropzone-value { min-height: 24px; }
+    .pairing-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .pairing-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+    .pairing-select { min-width: 260px; }
+    .warning-note { border-radius: 14px; padding: 8px 10px; background: var(--warn-soft); color: var(--warn); font-size: 12px; line-height: 1.5; }
     pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5; }
     details summary { cursor: pointer; font-weight: 700; }
+    .wizard-banner { margin-bottom: 18px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
+    .diagram-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fffdf8 0%, #f7f1e6 100%); }
+    .diagram-wrap svg { display: block; min-width: 100%; height: auto; }
+    .diagram-label { font-size: 12px; fill: var(--muted); }
+    .diagram-lane-label { font-size: 12px; font-weight: 700; fill: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+    .diagram-node-title { font-size: 13px; font-weight: 700; fill: var(--text); }
+    .diagram-node-subtitle { font-size: 11px; fill: var(--muted); }
+    .diagram-node-icon { font-size: 10px; font-weight: 700; fill: #fffdf8; letter-spacing: .08em; }
+    .diagram-issue-badge { font-size: 10px; font-weight: 700; fill: #991b1b; letter-spacing: .06em; text-transform: uppercase; }
     @media (max-width: 900px) {
       .split { grid-template-columns: 1fr; }
+      .triple { grid-template-columns: 1fr; }
+      .pairing-layout { grid-template-columns: 1fr; }
+      .pairing-palette { position: static; }
     }
   </style>
 </head>
@@ -73,8 +110,22 @@
     <div class="hero">
       <div class="eyebrow">Standalone Converter</div>
       <h1>Power Automate<br>Conversion Studio</h1>
-      <p>Carica un export `.zip`, ottieni analisi tecnica, incongruenze, remediation applicabile e package pronto per il portale Django.</p>
+      <p>Procedura guidata: collega SQL Server, scegli una tabella, carica lo `.zip` Power Automate e conferma visivamente il mapping prima del package finale.</p>
     </div>
+
+    {% if wizard is defined %}
+      <div class="wizard-banner">
+        Connessione:
+        {% if wizard.has_connection %}
+          <strong>{{ wizard.connection.server }} / {{ wizard.connection.database }}</strong>
+        {% else %}
+          <strong>non configurata</strong>
+        {% endif %}
+        {% if wizard.selected_table %}
+          <span style="margin-left:14px;">Tabella: <strong>{{ wizard.selected_table.full_name }}</strong></span>
+        {% endif %}
+      </div>
+    {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

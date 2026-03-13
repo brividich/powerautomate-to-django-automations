@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="btn-row" style="margin-bottom:18px;">
-  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna allo Storico</a>
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">Torna alla Home</a>
+  <a class="btn btn-secondary" href="{{ url_for('wizard_convert') }}">Nuova Conversione Guidata</a>
   <a class="btn" href="{{ url_for('conversion_package_download', record_id=record.record_id) }}">Scarica Package</a>
   <form method="post" action="{{ url_for('conversion_apply_remediation', record_id=record.record_id) }}">
     <button class="btn" type="submit">Applica Remediation</button>
@@ -23,6 +24,9 @@
       Creato: {{ record.created_at }}<br>
       Sorgente candidata: <code>{{ record.package.source_candidate.source_code }}</code> ({{ record.package.source_candidate.confidence }})<br>
       {{ record.package.source_candidate.reason }}
+      {% if record.package.target_context %}
+        <br>Target: <code>{{ record.package.target_context.full_name }}</code>
+      {% endif %}
     </div>
     <div class="stats">
       <div class="stat">
@@ -38,12 +42,20 @@
         <div class="stat-value">{{ record.package.issues|length }}</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Regole Proposte</div>
-        <div class="stat-value">{{ record.package.proposed_rules|length }}</div>
+        <div class="stat-label">Campi</div>
+        <div class="stat-value">{{ record.package.fields_used|length }}</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Remediation</div>
-        <div class="stat-value">{{ record.remediations_applied|length }}</div>
+        <div class="stat-label">Mapping Target</div>
+        <div class="stat-value">{{ record.package.approved_target_field_mapping|default(record.package.approved_field_mapping, true)|length }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Mapping Runtime</div>
+        <div class="stat-value">{{ record.package.approved_runtime_field_mapping|default({}, true)|length }}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Regole Selezionate</div>
+        <div class="stat-value">{{ record.package.selected_proposed_rule_codes|default([], true)|length }}</div>
       </div>
     </div>
   </div>
@@ -115,33 +127,406 @@
       </div>
     </div>
 
+    {% if record.package.target_context %}
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Target Database</div>
+        </div>
+        <div class="card-body">
+          <div class="meta">
+            DB: <code>{{ record.package.target_context.database }}</code><br>
+            Tabella: <code>{{ record.package.target_context.full_name }}</code><br>
+            Colonne: {{ record.package.target_context.column_count }}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
     <div class="card">
       <div class="card-head">
-        <div class="card-title">Mapping Campi</div>
+        <div class="card-title">Catalogo Runtime</div>
       </div>
-      <div class="card-body table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Power Automate</th>
-              <th>Target</th>
-              <th>Confidenza</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for source_field, mapping in record.package.field_mapping_candidates.items() %}
-              <tr>
-                <td><code>{{ source_field }}</code></td>
-                <td><code>{{ mapping.target_field }}</code></td>
-                <td>{{ mapping.confidence }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="3">Nessun mapping candidato disponibile.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="card-body">
+        <div class="meta">
+          Sorgente runtime: <code>{{ record.package.runtime_source_catalog.source_code }}</code><br>
+          Label: <strong>{{ record.package.runtime_source_catalog.label }}</strong><br>
+          Campi logici disponibili: {{ record.package.runtime_source_catalog.fields|length }}
+        </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="card-head">
+    <div class="card-title">Pairing Drag-and-Drop</div>
+  </div>
+  <div class="card-body">
+    {% set target_candidates = record.package.target_field_mapping_candidates or record.package.target_table_field_mapping_candidates or {} %}
+    {% set runtime_candidates = record.package.runtime_field_mapping_candidates or record.package.field_mapping_candidates or {} %}
+    {% set approved_target = record.package.approved_target_field_mapping or record.package.approved_field_mapping or {} %}
+    {% set approved_runtime = record.package.approved_runtime_field_mapping or {} %}
+    {% set runtime_fields = record.package.runtime_source_catalog.fields if record.package.runtime_source_catalog else [] %}
+    <div class="meta" style="margin-bottom:12px;">
+      Il pairing e' separato su due livelli: colonne reali della tabella target e campi logici runtime della sorgente <code>{{ record.package.runtime_source_catalog.source_code }}</code>. I due mapping sono indipendenti e vengono salvati entrambi nel package finale.
+    </div>
+    <div class="pairing-layout">
+      <div class="pairing-palette">
+        <div class="card-subtitle">Palette Target Table</div>
+        {% if record.package.table_columns %}
+          <div class="token-list">
+            {% for column in record.package.table_columns %}
+              <div
+                class="drag-token"
+                draggable="true"
+                data-scope="target_table"
+                data-value="{{ column.name }}"
+                data-label="{{ column.name }} ({{ column.data_type }})"
+              >
+                <strong>{{ column.name }}</strong>
+                <span>{{ column.data_type }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="meta">Nessuna tabella target associata. Puoi comunque salvare il mapping runtime.</div>
+        {% endif %}
+
+        <div class="card-subtitle" style="margin-top:18px;">Palette Runtime Source</div>
+        {% if runtime_fields %}
+          <div class="token-list">
+            {% for field in runtime_fields %}
+              <div
+                class="drag-token"
+                draggable="true"
+                data-scope="runtime_source"
+                data-value="{{ field.name }}"
+                data-label="{{ field.name }} ({{ field.data_type }})"
+              >
+                <strong>{{ field.label }}</strong>
+                <span>{{ field.name }} · {{ field.data_type }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="meta">La sorgente runtime selezionata non espone ancora un catalogo campi.</div>
+        {% endif %}
+      </div>
+
+      <form method="post" action="{{ url_for('conversion_save_mapping', record_id=record.record_id) }}" class="pairing-board">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Campo Power Automate</th>
+                <th>Pairing Tabella Target</th>
+                <th>Pairing Runtime Portale</th>
+                <th>Stato</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for source_field in record.package.fields_used %}
+                {% set target_candidate = target_candidates.get(source_field, {}) %}
+                {% set runtime_candidate = runtime_candidates.get(source_field, {}) %}
+                {% set target_entry = approved_target.get(source_field, {}) %}
+                {% set runtime_entry = approved_runtime.get(source_field, {}) %}
+                {% set target_selected = target_entry.target_field or target_candidate.target_field %}
+                {% set runtime_selected = runtime_entry.target_field or runtime_candidate.target_field %}
+                {% set target_select_id = 'target-map-' ~ loop.index0 %}
+                {% set runtime_select_id = 'runtime-map-' ~ loop.index0 %}
+                <tr>
+                  <td>
+                    <input type="hidden" name="source_fields" value="{{ source_field }}">
+                    <code>{{ source_field }}</code>
+                  </td>
+                  <td>
+                    {% if record.package.table_columns %}
+                      <div class="pairing-dropzone" data-select-id="{{ target_select_id }}" data-scope="target_table">
+                        <div class="dropzone-label">Drop colonna target</div>
+                        <div class="dropzone-value" data-empty-label="Trascina una colonna oppure usa il selettore">
+                          {% if target_selected %}
+                            <code>{{ target_selected }}</code>
+                          {% else %}
+                            <span class="meta">Trascina una colonna oppure usa il selettore</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="pairing-meta">
+                        Suggerito:
+                        {% if target_candidate.target_field %}
+                          <code>{{ target_candidate.target_field }}</code>
+                        {% else %}
+                          <span class="meta">nessun suggerimento forte</span>
+                        {% endif %}
+                        <span class="pill pill-{{ 'full' if target_candidate.confidence in ['approved', 'high'] else target_candidate.confidence or 'low' }}">{{ target_candidate.confidence or 'low' }}</span>
+                      </div>
+                      <div class="meta">{{ target_candidate.note or target_candidate.reason or '-' }}</div>
+                      <div class="pairing-controls">
+                        <select id="{{ target_select_id }}" name="target_mapping__{{ source_field }}" class="pairing-select">
+                          <option value="">-- non mappare alla tabella --</option>
+                          {% for column in record.package.table_columns %}
+                            <option value="{{ column.name }}" {% if target_selected == column.name %}selected{% endif %}>{{ column.name }} ({{ column.data_type }})</option>
+                          {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ target_select_id }}">Rimuovi</button>
+                      </div>
+                    {% else %}
+                      <div class="meta">Nessuna tabella target selezionata per questo record.</div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="pairing-dropzone" data-select-id="{{ runtime_select_id }}" data-scope="runtime_source">
+                      <div class="dropzone-label">Drop campo runtime</div>
+                      <div class="dropzone-value" data-empty-label="Trascina un campo runtime oppure usa il selettore">
+                        {% if runtime_selected %}
+                          <code>{{ runtime_selected }}</code>
+                        {% else %}
+                          <span class="meta">Trascina un campo runtime oppure usa il selettore</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    <div class="pairing-meta">
+                      Suggerito:
+                      {% if runtime_candidate.target_field %}
+                        <code>{{ runtime_candidate.target_field }}</code>
+                      {% else %}
+                        <span class="meta">nessun suggerimento runtime</span>
+                      {% endif %}
+                      <span class="pill pill-{{ 'full' if runtime_candidate.confidence in ['approved', 'high'] else runtime_candidate.confidence or 'low' }}">{{ runtime_candidate.confidence or 'low' }}</span>
+                    </div>
+                    <div class="meta">{{ runtime_candidate.note or runtime_candidate.reason or '-' }}</div>
+                    <div class="pairing-controls">
+                      <select id="{{ runtime_select_id }}" name="runtime_mapping__{{ source_field }}" class="pairing-select">
+                        <option value="">-- non mappare al runtime --</option>
+                        {% for field in runtime_fields %}
+                          <option value="{{ field.name }}" {% if runtime_selected == field.name %}selected{% endif %}>{{ field.label }} ({{ field.name }})</option>
+                        {% endfor %}
+                      </select>
+                      <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ runtime_select_id }}">Rimuovi</button>
+                    </div>
+                  </td>
+                  <td>
+                    {% if target_selected %}
+                      <div><span class="pill pill-full">target</span></div>
+                    {% endif %}
+                    {% if runtime_selected %}
+                      <div style="margin-top:6px;"><span class="pill pill-low">runtime</span></div>
+                    {% endif %}
+                    {% if target_selected and not runtime_selected %}
+                      <div class="warning-note" style="margin-top:8px;">Warning: pairing target presente ma runtime assente.</div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="meta" style="margin-top:12px;">
+          Le conferme sulla tabella target vengono salvate localmente e riutilizzate per migliorare i suggerimenti futuri su tabelle simili.
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn" type="submit">Salva Pairing</button>
+        </div>
+      </form>
+    </div>
+
+    {% if record.package.mapping_warnings %}
+      <div class="issue" style="margin-top:18px;">
+        <div class="btn-row" style="margin-bottom:8px;">
+          <span class="pill pill-medium">warning</span>
+          <code>mapping_warnings</code>
+        </div>
+        {% for warning in record.package.mapping_warnings %}
+          <div class="meta">{{ warning.message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <script>
+      (() => {
+        const dragTokens = document.querySelectorAll(".drag-token");
+        const dropzones = document.querySelectorAll(".pairing-dropzone");
+        const clearButtons = document.querySelectorAll(".pairing-clear");
+        const parsePayload = (raw) => {
+          try {
+            return JSON.parse(raw);
+          } catch (error) {
+            return null;
+          }
+        };
+
+        const syncDropzone = (select) => {
+          if (!select) {
+            return;
+          }
+          const zone = document.querySelector(`.pairing-dropzone[data-select-id="${select.id}"]`);
+          if (!zone) {
+            return;
+          }
+          const valueNode = zone.querySelector(".dropzone-value");
+          const selectedOption = select.options[select.selectedIndex];
+          valueNode.replaceChildren();
+          if (selectedOption && select.value) {
+            const code = document.createElement("code");
+            code.textContent = selectedOption.value;
+            valueNode.appendChild(code);
+          } else {
+            const span = document.createElement("span");
+            span.className = "meta";
+            span.textContent = valueNode.dataset.emptyLabel;
+            valueNode.appendChild(span);
+          }
+        };
+
+        dragTokens.forEach((token) => {
+          token.addEventListener("dragstart", (event) => {
+            event.dataTransfer.setData("text/plain", JSON.stringify({
+              scope: token.dataset.scope,
+              value: token.dataset.value,
+            }));
+            token.classList.add("is-dragging");
+          });
+          token.addEventListener("dragend", () => {
+            token.classList.remove("is-dragging");
+          });
+        });
+
+        dropzones.forEach((zone) => {
+          zone.addEventListener("dragover", (event) => {
+            const payload = parsePayload(event.dataTransfer.getData("text/plain"));
+            if (!payload) {
+              return;
+            }
+            if (payload.scope !== zone.dataset.scope) {
+              return;
+            }
+            event.preventDefault();
+            zone.classList.add("is-over");
+          });
+          zone.addEventListener("dragleave", () => {
+            zone.classList.remove("is-over");
+          });
+          zone.addEventListener("drop", (event) => {
+            event.preventDefault();
+            zone.classList.remove("is-over");
+            const payload = parsePayload(event.dataTransfer.getData("text/plain"));
+            if (!payload) {
+              return;
+            }
+            if (payload.scope !== zone.dataset.scope) {
+              return;
+            }
+            const select = document.getElementById(zone.dataset.selectId);
+            if (!select) {
+              return;
+            }
+            select.value = payload.value;
+            syncDropzone(select);
+          });
+        });
+
+        document.querySelectorAll(".pairing-select").forEach((select) => {
+          syncDropzone(select);
+          select.addEventListener("change", () => syncDropzone(select));
+        });
+
+        clearButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const select = document.getElementById(button.dataset.selectId);
+            if (!select) {
+              return;
+            }
+            select.value = "";
+            syncDropzone(select);
+          });
+        });
+      })();
+    </script>
+  </div>
+</div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+  <div class="card-head">
+    <div class="card-title">Diagramma del Flusso</div>
+  </div>
+  <div class="card-body">
+    <div class="meta" style="margin-bottom:12px;">
+      Vista di consultazione del flow, utile per confronto rapido con Power Automate. I nodi mostrano trigger, azioni e rami principali senza modalita' drag-and-drop.
+    </div>
+    <div class="btn-row" style="margin-bottom:12px;">
+      <span class="pill pill-full">trigger / ok</span>
+      <span class="pill pill-medium">loop / branch</span>
+      <span class="pill pill-high">blocchi critici</span>
+    </div>
+    {% if record.normalized.diagram and record.normalized.diagram.nodes %}
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 {{ record.normalized.diagram.width }} {{ record.normalized.diagram.height }}" role="img" aria-label="Diagramma del flusso">
+          <defs>
+            <marker id="arrow-head" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"></path>
+            </marker>
+          </defs>
+
+          {% for lane in record.normalized.diagram.lanes %}
+            <rect
+              x="{{ lane.x }}"
+              y="{{ lane.y }}"
+              rx="18"
+              ry="18"
+              width="{{ lane.width }}"
+              height="{{ lane.height }}"
+              fill="{{ lane.fill }}"
+              stroke="{{ lane.stroke }}"
+              stroke-width="1.5"
+              stroke-dasharray="6 4"
+            />
+            <text x="{{ lane.x + 16 }}" y="{{ lane.y + 22 }}" class="diagram-lane-label">{{ lane.label }}</text>
+          {% endfor %}
+
+          {% for edge in record.normalized.diagram.edges %}
+            <line
+              x1="{{ edge.x1 }}"
+              y1="{{ edge.y1 }}"
+              x2="{{ edge.x2 }}"
+              y2="{{ edge.y2 }}"
+              stroke="#334155"
+              stroke-width="2"
+              marker-end="url(#arrow-head)"
+            />
+            {% if edge.label %}
+              <text x="{{ edge.label_x }}" y="{{ edge.label_y }}" text-anchor="middle" class="diagram-label">{{ edge.label }}</text>
+            {% endif %}
+          {% endfor %}
+
+          {% for node in record.normalized.diagram.nodes %}
+            <rect
+              x="{{ node.x }}"
+              y="{{ node.y }}"
+              rx="20"
+              ry="20"
+              width="{{ node.width }}"
+              height="{{ node.height }}"
+              fill="{{ node.fill }}"
+              stroke="{{ node.stroke }}"
+              stroke-width="2"
+            />
+            <circle cx="{{ node.x + 20 }}" cy="{{ node.y + 20 }}" r="12" fill="{{ node.stroke }}"></circle>
+            <text x="{{ node.x + 20 }}" y="{{ node.y + 24 }}" text-anchor="middle" class="diagram-node-icon">{{ node.icon }}</text>
+            <text x="{{ node.x + 40 }}" y="{{ node.y + 28 }}" class="diagram-node-title">{{ node.lines[0] }}</text>
+            <text x="{{ node.x + 40 }}" y="{{ node.y + 48 }}" class="diagram-node-subtitle">{{ node.lines[1] }}</text>
+            {% if node.branch and node.branch != 'main' %}
+              <text x="{{ node.x + node.width - 16 }}" y="{{ node.y + 22 }}" text-anchor="end" class="diagram-label">{{ node.branch }}</text>
+            {% endif %}
+            {% if node.issue_badge %}
+              <text x="{{ node.x + node.width - 16 }}" y="{{ node.y + node.height - 14 }}" text-anchor="end" class="diagram-issue-badge">{{ node.issue_badge }}</text>
+            {% endif %}
+          {% endfor %}
+        </svg>
+      </div>
+    {% else %}
+      <div class="meta">Diagramma non disponibile per questo record.</div>
+    {% endif %}
   </div>
 </div>
 
@@ -150,48 +535,66 @@
     <div class="card-title">Regole Draft Proposte</div>
   </div>
   <div class="card-body">
-    <div class="rule-list">
-      {% for rule in record.package.proposed_rules %}
-        <div class="rule">
-          <h3>{{ rule.name }}</h3>
-          <div class="meta">
-            <code>{{ rule.code }}</code><br>
-            Trigger: <code>{{ rule.source_code }}.{{ rule.operation_type }}.{{ rule.trigger_scope }}</code>
-            {% if rule.watched_field %}<br>Watched field: <code>{{ rule.watched_field }}</code>{% endif %}
+    <form method="post" action="{{ url_for('conversion_select_rules', record_id=record.record_id) }}">
+      <div class="meta" style="margin-bottom:12px;">
+        Seleziona le regole che vuoi tenere nel package finale. Il download JSON conservera' comunque tutte le proposte, ma includera' anche il blocco <code>selected_proposed_rules</code> con solo quelle scelte.
+      </div>
+      <div class="btn-row" style="margin-bottom:12px;">
+        <button class="btn" type="submit">Salva Selezione Regole</button>
+      </div>
+      <div class="rule-list">
+        {% set selected_rules = record.package.selected_proposed_rule_codes|default([], true) %}
+        {% for rule in record.package.proposed_rules %}
+          <div class="rule">
+            <label class="checkbox" style="margin-bottom:10px;">
+              <input
+                type="checkbox"
+                name="selected_rule_codes"
+                value="{{ rule.code }}"
+                {% if rule.code in selected_rules %}checked{% endif %}
+              >
+              Includi questa regola nel package finale
+            </label>
+            <h3>{{ rule.name }}</h3>
+            <div class="meta">
+              <code>{{ rule.code }}</code><br>
+              Trigger: <code>{{ rule.source_code }}.{{ rule.operation_type }}.{{ rule.trigger_scope }}</code>
+              {% if rule.watched_field %}<br>Watched field: <code>{{ rule.watched_field }}</code>{% endif %}
+            </div>
+            <div class="table-wrap" style="margin-top:12px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Condizioni</th>
+                    <th>Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      {% for condition in rule.conditions %}
+                        <div><code>{{ condition.field_name }}</code> {{ condition.operator }} <code>{{ condition.expected_value or "-" }}</code></div>
+                      {% else %}
+                        <div>-</div>
+                      {% endfor %}
+                    </td>
+                    <td>
+                      {% for action in rule.actions %}
+                        <div><code>{{ action.action_type }}</code> - {{ action.description }}</div>
+                      {% else %}
+                        <div>-</div>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="table-wrap" style="margin-top:12px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Condizioni</th>
-                  <th>Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    {% for condition in rule.conditions %}
-                      <div><code>{{ condition.field_name }}</code> {{ condition.operator }} <code>{{ condition.expected_value or "-" }}</code></div>
-                    {% else %}
-                      <div>-</div>
-                    {% endfor %}
-                  </td>
-                  <td>
-                    {% for action in rule.actions %}
-                      <div><code>{{ action.action_type }}</code> - {{ action.description }}</div>
-                    {% else %}
-                      <div>-</div>
-                    {% endfor %}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      {% else %}
-        <div class="meta">Nessuna regola proposta nel package.</div>
-      {% endfor %}
-    </div>
+        {% else %}
+          <div class="meta">Nessuna regola proposta nel package.</div>
+        {% endfor %}
+      </div>
+    </form>
   </div>
 </div>
 

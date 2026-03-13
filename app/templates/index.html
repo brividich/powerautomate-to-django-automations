@@ -3,37 +3,89 @@
 {% block title %}Conversion Studio | Power Automate{% endblock %}
 
 {% block content %}
-<div class="split">
+<div class="triple">
+  <div class="step">
+    <strong>1. Configura SQL Server</strong>
+    <div class="meta">Driver ODBC, server, database e autenticazione in una procedura guidata.</div>
+    <div class="btn-row" style="margin-top:12px;">
+      <a class="btn" href="{{ url_for('wizard_sqlserver') }}">
+        {% if wizard.has_connection %}Modifica Connessione{% else %}Configura Connessione{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <div class="step">
+    <strong>2. Scegli la tabella target</strong>
+    <div class="meta">
+      {% if wizard.selected_table %}
+        Tabella attuale: <code>{{ wizard.selected_table.full_name }}</code>
+      {% else %}
+        Dopo la connessione vedrai le tabelle disponibili e potrai selezionare quella su cui fare il merge dei campi.
+      {% endif %}
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <a class="btn {% if not wizard.has_connection %}btn-ghost{% endif %}" href="{{ url_for('wizard_sqlserver_tables') }}">Apri Tabelle</a>
+    </div>
+  </div>
+
+  <div class="step">
+    <strong>3. Carica il flow</strong>
+    <div class="meta">
+      {% if wizard.ready_for_upload %}
+        La procedura guidata e' pronta. Puoi caricare un export `.zip` o `.json` e rivedere visivamente il mapping.
+      {% else %}
+        Il caricamento guidato si abilita dopo aver configurato la connessione e scelto la tabella.
+      {% endif %}
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <a class="btn {% if not wizard.ready_for_upload %}btn-ghost{% endif %}" href="{{ url_for('wizard_convert') }}">Vai al Caricamento</a>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:18px;">
   <div class="card">
     <div class="card-head">
-      <div class="card-title">Nuova Conversione</div>
+      <div class="card-title">Procedura Guidata</div>
     </div>
-    <div class="card-body">
-      <form method="post" action="{{ url_for('convert') }}" enctype="multipart/form-data" class="grid">
-        <div class="field">
-          <label for="flow_file">Flow Power Automate</label>
-          <input id="flow_file" name="flow_file" type="file" accept=".zip,.json" required>
-        </div>
-        <div class="meta">
-          La conversione salva uno storico locale, genera package JSON, preview Markdown e un dettaglio navigabile con remediation applicabile.
-        </div>
-        <div class="btn-row">
-          <button class="btn" type="submit">Analizza e Converti</button>
-        </div>
-      </form>
+    <div class="card-body grid">
+      <div class="meta">1. Connessione guidata a SQL Server</div>
+      <div class="meta">2. Lettura tabelle reali dal database</div>
+      <div class="meta">3. Conversione del flow Power Automate</div>
+      <div class="meta">4. Proposta automatica di mapping campo -> colonna</div>
+      <div class="meta">5. Conferma o correzione manuale del mapping</div>
+      <div class="meta">6. Memoria locale delle conferme per migliorare i suggerimenti futuri</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <form method="post" action="{{ url_for('wizard_reset') }}">
+          <button class="btn btn-secondary" type="submit">Azzera Procedura</button>
+        </form>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-head">
-      <div class="card-title">Funzioni</div>
+      <div class="card-title">Stato Attuale</div>
     </div>
-    <div class="card-body grid">
-      <div class="meta">1. Upload `.zip` / `.json` Power Automate</div>
-      <div class="meta">2. Analisi trigger, azioni, connettori e campi</div>
-      <div class="meta">3. Storico conversioni con pagina dettaglio dedicata</div>
-      <div class="meta">4. Remediation automatica per casi `assenze` piu' comuni</div>
-      <div class="meta">5. Download package finale pronto per il portale Django</div>
+    <div class="card-body stats">
+      <div class="stat">
+        <div class="stat-label">Connessione</div>
+        <div class="stat-value">
+          {% if wizard.has_connection %}<span class="pill pill-full">ok</span>{% else %}<span class="pill pill-low">setup</span>{% endif %}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Tabella</div>
+        <div class="stat-value">
+          {% if wizard.selected_table %}<span class="pill pill-full">ok</span>{% else %}<span class="pill pill-low">setup</span>{% endif %}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Upload</div>
+        <div class="stat-value">
+          {% if wizard.ready_for_upload %}<span class="pill pill-full">ready</span>{% else %}<span class="pill pill-low">wait</span>{% endif %}
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -45,15 +97,19 @@
   <div class="card-body">
     <div class="records">
       {% for record in records %}
+        {% set package = record.package if record.package is defined else {} %}
+        {% set package_input = package.input if package.input is defined else {} %}
         <div class="record">
-          <h3><a href="{{ url_for('conversion_detail', record_id=record.record_id) }}">{{ record.package.input.flow_name }}</a></h3>
+          <h3><a href="{{ url_for('conversion_detail', record_id=record.record_id) }}">{{ package_input.flow_name or record.filename or record.record_id }}</a></h3>
           <div class="meta">
-            File: <code>{{ record.filename }}</code><br>
-            Creato: {{ record.created_at }}<br>
-            Sorgente candidata: <code>{{ record.package.source_candidate.source_code }}</code><br>
+            File: <code>{{ record.filename or "-" }}</code><br>
+            Creato: {{ record.created_at or "-" }}<br>
+            {% if package.target_context %}
+              Target: <code>{{ package.target_context.full_name }}</code><br>
+            {% endif %}
             Compatibilita':
-            <span class="pill {% if record.package.compatibility.status == 'full' %}pill-full{% else %}pill-partial{% endif %}">
-              {{ record.package.compatibility.status }}
+            <span class="pill {% if package.compatibility is defined and package.compatibility.status == 'full' %}pill-full{% else %}pill-partial{% endif %}">
+              {{ package.compatibility.status if package.compatibility is defined else 'unknown' }}
             </span>
           </div>
           <div class="btn-row" style="margin-top:12px;">

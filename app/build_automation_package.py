@@ -7,19 +7,11 @@ import re
 from typing import Any
 
 from extract_logic import extract_actions_and_fields, extract_trigger_summary
+from package_mapping import normalize_package_mappings
+from runtime_catalog import suggest_runtime_field_mapping
 
 
 CONNECTION_KEY_RE = re.compile(r"\['([^']+)'\]")
-
-FIELD_MAPPING_CANDIDATES = {
-    "Data_x0020_inizio": "data_inizio",
-    "Datafine": "data_fine",
-    "Tipoassenza": "tipo_assenza",
-    "Motivazionerichiesta": "motivazione_richiesta",
-    "Salta_x0020_approvazione": "salta_approvazione",
-    "{ModerationStatus}": "moderation_status",
-    "CAR": "capo_email",
-}
 
 
 def _safe_dict(value: Any) -> dict[str, Any]:
@@ -107,6 +99,20 @@ def _guess_source(flow_name: str, fields_used: list[str]) -> dict[str, str]:
             "reason": "Il nome del flow e i campi principali coincidono con la sorgente assenze del portale.",
         }
 
+    source_patterns = {
+        "tasks": ("task", "attivita"),
+        "assets": ("asset", "cespite"),
+        "tickets": ("ticket", "helpdesk"),
+        "anomalie": ("anomalia", "anomalie"),
+    }
+    for source_code, patterns in source_patterns.items():
+        if any(pattern in lowered_name for pattern in patterns):
+            return {
+                "source_code": source_code,
+                "confidence": "medium",
+                "reason": f"Il nome del flow contiene indicatori compatibili con la sorgente runtime '{source_code}'.",
+            }
+
     return {
         "source_code": "generic",
         "confidence": "low",
@@ -114,20 +120,25 @@ def _guess_source(flow_name: str, fields_used: list[str]) -> dict[str, str]:
     }
 
 
-def _field_mapping(fields_used: list[str], *, source_code: str) -> dict[str, dict[str, str]]:
-    mapped: dict[str, dict[str, str]] = {}
-    if source_code != "assenze":
-        return mapped
-
-    for source_field in fields_used:
-        target_field = FIELD_MAPPING_CANDIDATES.get(source_field)
+def _approved_runtime_field_mapping(
+    runtime_candidates: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    approved: dict[str, dict[str, Any]] = {}
+    for source_field, candidate in runtime_candidates.items():
+        if not isinstance(candidate, dict):
+            continue
+        target_field = str(candidate.get("target_field") or "").strip()
         if not target_field:
             continue
-        mapped[source_field] = {
+        approved[source_field] = {
             "target_field": target_field,
-            "confidence": "high" if source_field != "CAR" else "medium",
+            "confidence": str(candidate.get("confidence") or "medium"),
+            "status": "auto",
+            "mapping_scope": "runtime_source",
+            "note": str(candidate.get("note") or candidate.get("reason") or "approvato automaticamente"),
+            "source": str(candidate.get("source") or "runtime_catalog"),
         }
-    return mapped
+    return approved
 
 
 def _build_issue(
@@ -424,6 +435,7 @@ def build_automation_package(flow: dict[str, Any], *, input_path: Path | None = 
     raw_actions = _iter_actions(flow["actions"])
     connectors = _collect_connectors(flow["raw"], raw_actions)
     source_candidate = _guess_source(flow["flow_name"], fields_used)
+    runtime_candidates = suggest_runtime_field_mapping(fields_used, source_code=source_candidate["source_code"])
     issues = _detect_issues(
         actions=raw_actions,
         connectors=connectors,
@@ -437,7 +449,7 @@ def build_automation_package(flow: dict[str, Any], *, input_path: Path | None = 
     elif any(issue["severity"] == "medium" for issue in issues):
         compatibility_status = "partial"
 
-    return {
+    package = {
         "package_version": "1.0",
         "generated_at": datetime.now(UTC).isoformat(),
         "input": {
@@ -458,7 +470,11 @@ def build_automation_package(flow: dict[str, Any], *, input_path: Path | None = 
             "action_type_counts": dict(sorted(Counter(row["type"] for row in raw_actions).items())),
         },
         "connectors": connectors,
-        "field_mapping_candidates": _field_mapping(fields_used, source_code=source_candidate["source_code"]),
+        "field_mapping_candidates": runtime_candidates,
+        "runtime_field_mapping_candidates": runtime_candidates,
+        "approved_runtime_field_mapping": _approved_runtime_field_mapping(runtime_candidates),
+        "target_field_mapping_candidates": {},
+        "approved_target_field_mapping": {},
         "fields_used": fields_used,
         "issues": issues,
         "proposed_rules": _build_proposed_rules(source_candidate["source_code"], flow["flow_name"]),
@@ -467,3 +483,4 @@ def build_automation_package(flow: dict[str, Any], *, input_path: Path | None = 
             "actions": actions,
         },
     }
+    return normalize_package_mappings(package)
