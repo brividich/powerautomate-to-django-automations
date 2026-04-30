@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from runtime_catalog import get_runtime_source_catalog, runtime_field_names
+from runtime_catalog import get_portal_profile, get_runtime_source_catalog, get_workflow_capabilities, runtime_field_names
 
 
 TARGET_SCOPE = "target_table"
@@ -99,7 +99,9 @@ def normalize_package_mappings(package: dict[str, Any]) -> dict[str, Any]:
     runtime_catalog = get_runtime_source_catalog(runtime_source_code)
 
     package["runtime_source_catalog"] = runtime_catalog
+    package["portal_profile"] = get_portal_profile(runtime_source_code)
     package["runtime_supported_fields"] = runtime_field_names(runtime_source_code)
+    package["workflow_capabilities"] = get_workflow_capabilities(runtime_source_code)
     package["field_mapping_candidates"] = _copy(runtime_candidates)
     package["runtime_field_mapping_candidates"] = _copy(runtime_candidates)
     package["approved_runtime_field_mapping"] = _copy(approved_runtime)

@@ -20,6 +20,14 @@ from fixtures import sample_power_automate_payload
 
 
 class ConversionServiceTests(unittest.TestCase):
+    @staticmethod
+    def _approval_template(delivery_mode: str = "hybrid") -> dict[str, str]:
+        return {
+            "code": f"tpl-{delivery_mode}",
+            "name": f"Template {delivery_mode}",
+            "delivery_mode": delivery_mode,
+        }
+
     def test_analyze_flow_upload_tolerates_non_dict_blocks(self):
         payload_buffer = BytesIO()
         malformed_workflow = {
@@ -50,7 +58,11 @@ class ConversionServiceTests(unittest.TestCase):
         self.assertEqual(record["package"]["connectors"], [])
 
     def test_apply_recommended_remediation_adds_audit_rule(self):
-        record = analyze_flow_upload("sample.zip", sample_power_automate_payload())
+        record = analyze_flow_upload(
+            "sample.zip",
+            sample_power_automate_payload(),
+            approval_template=self._approval_template(),
+        )
 
         updated = apply_recommended_remediation(record)
 
@@ -60,7 +72,11 @@ class ConversionServiceTests(unittest.TestCase):
         self.assertIn("pa-assenze-insert-skip-approval-audit", updated["package"]["selected_proposed_rule_codes"])
 
     def test_analyze_flow_upload_builds_diagram_model(self):
-        record = analyze_flow_upload("sample.zip", sample_power_automate_payload())
+        record = analyze_flow_upload(
+            "sample.zip",
+            sample_power_automate_payload(),
+            approval_template=self._approval_template(),
+        )
 
         diagram = record["normalized"]["diagram"]
 
@@ -72,7 +88,11 @@ class ConversionServiceTests(unittest.TestCase):
         self.assertGreater(diagram["height"], 0)
 
     def test_analyze_flow_upload_selects_all_rules_by_default(self):
-        record = analyze_flow_upload("sample.zip", sample_power_automate_payload())
+        record = analyze_flow_upload(
+            "sample.zip",
+            sample_power_automate_payload(),
+            approval_template=self._approval_template(),
+        )
 
         self.assertEqual(
             sorted(record["package"]["selected_proposed_rule_codes"]),
@@ -95,10 +115,18 @@ class ConversionServiceTests(unittest.TestCase):
             ],
         }
 
-        record = analyze_flow_upload("sample.zip", sample_power_automate_payload(), target_context=target_context)
+        record = analyze_flow_upload(
+            "sample.zip",
+            sample_power_automate_payload(),
+            target_context=target_context,
+            approval_template=self._approval_template(),
+        )
 
         self.assertEqual(record["package"]["target_context"]["full_name"], "staging.richieste_import")
         self.assertEqual(record["package"]["runtime_source_catalog"]["source_code"], "assenze")
+        self.assertEqual(record["package"]["portal_profile"]["code"], "novicrom")
+        self.assertEqual(record["package"]["workflow_capabilities"]["approval"]["status_field"], "moderation_status")
+        self.assertEqual(record["package"]["approval_conversion"]["template_code"], "tpl-hybrid")
         self.assertEqual(record["package"]["field_mapping_candidates"]["Data_x0020_inizio"]["target_field"], "data_inizio")
         self.assertEqual(record["package"]["runtime_field_mapping_candidates"]["EmailDipendente"]["target_field"], "dipendente_email")
         self.assertEqual(record["package"]["approved_runtime_field_mapping"]["Salta_x0020_approvazione"]["target_field"], "salta_approvazione")
@@ -111,6 +139,18 @@ class ConversionServiceTests(unittest.TestCase):
             record["package"]["field_mapping_candidates"]["Data_x0020_inizio"]["target_field"],
         )
         self.assertEqual(len(record["package"]["table_columns"]), 3)
+
+    def test_analyze_flow_upload_without_mail_reply_template_blocks_approval_rule_generation(self):
+        record = analyze_flow_upload(
+            "sample.zip",
+            sample_power_automate_payload(),
+            approval_template=self._approval_template("portal_links"),
+        )
+
+        self.assertIn("approval_conversion", record["package"])
+        self.assertEqual(record["package"]["proposed_rules"], [])
+        issue_codes = {issue["code"] for issue in record["package"]["issues"]}
+        self.assertIn("approval-template-mail-required", issue_codes)
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@
     .hero p { margin: 0; max-width: 900px; font-size: 18px; line-height: 1.6; color: var(--muted); }
     .grid { display: grid; gap: 18px; }
     .card { background: rgba(255, 253, 248, .92); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 20px 50px rgba(40, 32, 18, .08); overflow: hidden; }
+    .card-pairing { overflow: visible; }
     .card-head { padding: 18px 22px 10px; border-bottom: 1px solid rgba(217, 209, 194, .7); }
     .card-title { font-size: 13px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
     .card-body { padding: 20px 22px 24px; }
@@ -70,38 +71,83 @@
     th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
     th { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
     .card-subtitle { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
-    .pairing-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; align-items: start; }
-    .pairing-palette { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.65); position: sticky; top: 18px; }
+    .pairing-layout { display: grid; gap: 22px; grid-template-columns: 280px minmax(0, 1fr); align-items: start; }
+    .pairing-guide { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.78) 0%, rgba(252, 248, 240, .95) 100%); margin-bottom: 16px; }
+    .pairing-guide-grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .pairing-guide-step { border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: rgba(255,255,255,.82); }
+    .pairing-guide-step strong { display: block; margin-bottom: 6px; }
+    .pairing-example { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
+    .pairing-example code { font-size: 13px; }
+    .pairing-palette { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.7); position: sticky; top: 18px; max-height: calc(100vh - 36px); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 16px 30px rgba(40,32,18,.06); }
     .token-list { display: grid; gap: 10px; }
     .drag-token { border: 1px dashed var(--line); border-radius: 16px; padding: 12px; background: #fff; cursor: grab; display: grid; gap: 4px; }
     .drag-token strong { font-size: 14px; }
     .drag-token span { font-size: 12px; color: var(--muted); }
     .drag-token.is-dragging { opacity: .55; }
-    .pairing-board { display: grid; gap: 12px; }
-    .pairing-dropzone { border: 1px dashed var(--line); border-radius: 16px; background: #fff; padding: 12px; min-height: 86px; display: grid; gap: 8px; }
+    .pairing-board { display: grid; gap: 14px; min-width: 0; }
+    .pairing-toolbar { position: sticky; top: 18px; z-index: 6; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,253,248,.94); box-shadow: 0 16px 30px rgba(40,32,18,.06); }
+    .pairing-legend { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pairing-legend-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .pairing-legend-target { background: var(--accent-soft); color: var(--accent); border-color: rgba(15,118,110,.24); }
+    .pairing-legend-runtime { background: var(--warn-soft); color: var(--warn); border-color: rgba(146,64,14,.18); }
+    .pairing-legend-review { background: rgba(91,102,115,.12); color: var(--muted); border-color: rgba(91,102,115,.18); }
+    .pairing-toolbar-actions { display: flex; gap: 12px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+    .pairing-filter-toggle { white-space: nowrap; }
+    .pairing-toolbar-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+    .pairing-board-header { display: grid; grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 0 6px; }
+    .pairing-column-title { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .pairing-rows { display: grid; gap: 14px; }
+    .pairing-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,.72); box-shadow: 0 12px 28px rgba(40,32,18,.06); }
+    .pairing-row.is-hidden { display: none; }
+    .pairing-row.is-complete { border-color: rgba(15,118,110,.18); }
+    .pairing-source-card { display: grid; gap: 10px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fff; min-width: 0; }
+    .pairing-source-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .pairing-source-name { min-width: 0; }
+    .pairing-source-name code { font-size: 14px; word-break: break-word; white-space: pre-wrap; }
+    .pairing-status-stack { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pairing-status-runtime { background: var(--warn-soft); color: var(--warn); }
+    .pairing-status-review { background: rgba(91,102,115,.12); color: var(--muted); }
+    .pairing-slot { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.92); }
+    .pairing-slot-target { border-color: rgba(15,118,110,.18); background: linear-gradient(180deg, rgba(240, 253, 250, .88) 0%, rgba(255,255,255,.96) 100%); }
+    .pairing-slot-runtime { border-color: rgba(146,64,14,.16); background: linear-gradient(180deg, rgba(255, 251, 235, .92) 0%, rgba(255,255,255,.96) 100%); }
+    .pairing-slot-head { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+    .pairing-slot-title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .pairing-dropzone { border: 1px dashed var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(249, 245, 237, .9) 100%); padding: 12px; min-height: 92px; display: grid; gap: 8px; align-content: start; }
     .pairing-dropzone.is-over { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, .12); }
     .dropzone-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-    .dropzone-value { min-height: 24px; }
+    .dropzone-value { min-height: 28px; min-width: 0; }
+    .dropzone-value code { white-space: pre-wrap; word-break: break-word; }
     .pairing-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-    .pairing-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-    .pairing-select { min-width: 260px; }
+    .pairing-note { color: var(--muted); font-size: 13px; line-height: 1.5; min-height: 38px; }
+    .pairing-empty { border: 1px dashed var(--line); border-radius: 16px; padding: 14px; background: #fff; color: var(--muted); font-size: 14px; }
+    .pairing-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; margin-top: 4px; }
+    .pairing-select { width: 100%; min-width: 0; }
     .warning-note { border-radius: 14px; padding: 8px 10px; background: var(--warn-soft); color: var(--warn); font-size: 12px; line-height: 1.5; }
     pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5; }
     details summary { cursor: pointer; font-weight: 700; }
     .wizard-banner { margin-bottom: 18px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,.7); }
-    .diagram-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, #fffdf8 0%, #f7f1e6 100%); }
-    .diagram-wrap svg { display: block; min-width: 100%; height: auto; }
+    .diagram-wrap { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(135deg, #fffdf8 0%, #f0ebe0 100%); min-height: 320px; cursor: grab; user-select: none; position: relative; }
+    .diagram-wrap svg { display: block; }
+    .diagram-toolbar { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 10; }
+    .diagram-toolbar .btn { padding: 7px 12px; font-size: 13px; }
     .diagram-label { font-size: 12px; fill: var(--muted); }
-    .diagram-lane-label { font-size: 12px; font-weight: 700; fill: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+    .diagram-lane-label { font-size: 11px; font-weight: 700; fill: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
     .diagram-node-title { font-size: 13px; font-weight: 700; fill: var(--text); }
     .diagram-node-subtitle { font-size: 11px; fill: var(--muted); }
     .diagram-node-icon { font-size: 10px; font-weight: 700; fill: #fffdf8; letter-spacing: .08em; }
     .diagram-issue-badge { font-size: 10px; font-weight: 700; fill: #991b1b; letter-spacing: .06em; text-transform: uppercase; }
+    .diagram-edge-branch { stroke: #6366f1; stroke-dasharray: 5 3; }
+    .diagram-edge-main { stroke: #334155; }
     @media (max-width: 900px) {
       .split { grid-template-columns: 1fr; }
       .triple { grid-template-columns: 1fr; }
+      .pairing-guide-grid { grid-template-columns: 1fr; }
       .pairing-layout { grid-template-columns: 1fr; }
-      .pairing-palette { position: static; }
+      .pairing-palette { position: static; max-height: none; overflow: visible; }
+      .pairing-toolbar { position: static; }
+      .pairing-board-header { display: none; }
+      .pairing-row { grid-template-columns: 1fr; }
+      .pairing-controls { grid-template-columns: 1fr; }
     }
   </style>
 </head>

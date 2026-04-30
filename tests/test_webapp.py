@@ -165,6 +165,8 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Diagramma del Flusso", response.data)
         self.assertIn(b"<svg", response.data)
+        self.assertIn(b"Come Usare Il Pairing", response.data)
+        self.assertIn(b"Mostra solo pairing incompleti", response.data)
 
     def test_rule_selection_persists_and_is_exported(self):
         response = self.client.post(

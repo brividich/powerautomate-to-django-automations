@@ -26,15 +26,25 @@ class BuildAutomationPackageTests(unittest.TestCase):
 
         try:
             flow = load_flow_definition(flow_path)
-            package = build_automation_package(flow, input_path=flow_path)
+            package = build_automation_package(
+                flow,
+                input_path=flow_path,
+                approval_template={
+                    "code": "tpl-approval-hybrid",
+                    "name": "Template Approval Hybrid",
+                    "delivery_mode": "hybrid",
+                },
+            )
         finally:
             flow_path.unlink(missing_ok=True)
 
         self.assertEqual(package["source_candidate"]["source_code"], "assenze")
         self.assertEqual(package["compatibility"]["status"], "partial")
         self.assertGreaterEqual(len(package["issues"]), 4)
-        self.assertEqual(len(package["proposed_rules"]), 3)
+        self.assertEqual(len(package["proposed_rules"]), 1)
         self.assertIn("runtime_source_catalog", package)
+        self.assertEqual(package["portal_profile"]["code"], "novicrom")
+        self.assertTrue(package["workflow_capabilities"]["approval"]["managed_by_portal"])
         self.assertIn("field_mapping_candidates", package)
         self.assertIn("runtime_field_mapping_candidates", package)
         self.assertIn("approved_runtime_field_mapping", package)
@@ -44,6 +54,19 @@ class BuildAutomationPackageTests(unittest.TestCase):
         self.assertEqual(package["runtime_field_mapping_candidates"]["EmailDipendente"]["target_field"], "dipendente_email")
         self.assertEqual(package["runtime_source_catalog"]["source_code"], "assenze")
         self.assertIn("salta_approvazione", package["runtime_supported_fields"])
+        self.assertIn("approval_conversion", package)
+        self.assertEqual(package["approval_conversion"]["strategy"], "send_approval")
+        self.assertEqual(package["approval_conversion"]["template_code"], "tpl-approval-hybrid")
+        self.assertEqual(package["approval_conversion"]["template_delivery_mode"], "hybrid")
+        self.assertEqual(package["approval_conversion"]["approver_template"], "{capo_email}")
+        self.assertEqual(package["proposed_rules"][0]["actions"][0]["action_type"], "send_approval")
+        self.assertEqual(
+            package["proposed_rules"][0]["actions"][0]["config_json"]["approval_email_template_code"],
+            "tpl-approval-hybrid",
+        )
+        issue_codes = {issue["code"] for issue in package["issues"]}
+        self.assertIn("approval-branch-manual-review", issue_codes)
+        self.assertNotIn("approval-delegated-to-portal", issue_codes)
 
 
 if __name__ == "__main__":

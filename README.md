@@ -8,6 +8,8 @@
   Collega SQL Server, scegli la tabella reale, carica il flow <code>.zip</code> o <code>.json</code>, rivedi il pairing e scarica il package finale.
 </p>
 
+> Nota integrazione: oltre alla webapp standalone originale, i servizi di conversione di questa cartella vengono ora riusati direttamente anche nel modulo Django `automazioni` tramite la pagina `Converti Power Automate` in Admin Portale. L'integrazione Django privilegia il catalogo tabelle del portale, il passaggio diretto al workflow `Importa Package` e l'apertura di singole regole importabili nel designer visuale come bozze draft, mentre questa cartella resta la sorgente dei servizi converter e della UI standalone storica.
+
 <p align="center">
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-1f2937?style=flat-square">
   <img alt="Flask" src="https://img.shields.io/badge/Web-Flask-0f766e?style=flat-square">
@@ -23,6 +25,7 @@ Questo progetto prende un export Power Automate e lo trasforma in un package tec
 
 ## Cosa fa oggi
 
+- riuso diretto dal modulo Django `automazioni` per analisi, remediation e diagramma flow
 - procedura guidata di connessione a `SQL Server`
 - lettura reale di tabelle e colonne dal database
 - upload di export Power Automate `.zip` e `.json`
@@ -31,6 +34,7 @@ Questo progetto prende un export Power Automate e lo trasforma in un package tec
 - pairing separato tra tabella target e runtime source
 - conferma manuale tramite UI e drag-and-drop
 - memoria locale dei mapping approvati per migliorare i suggerimenti futuri
+- preset portale `novicrom` con catalogo runtime e workflow approval nativo
 - storico conversioni con pagina dettaglio, issue e remediation
 - download del file finale `automation_package.json`
 
@@ -53,6 +57,84 @@ Questo progetto prende un export Power Automate e lo trasforma in un package tec
 5. rivedi il mapping suggerito verso tabella e runtime
 6. correggi eventuali pairing e seleziona le regole da tenere
 7. scarica il package JSON finale
+
+## Guida Al Pairing
+
+La schermata di pairing separa due livelli distinti:
+
+- `Pairing Tabella Target`: collega un campo del flow a una colonna reale del database SQL Server
+- `Pairing Runtime Portale`: collega lo stesso campo del flow al nome logico che il portale Django si aspetta a runtime
+
+Questi due mapping sono indipendenti. In pratica:
+
+- una colonna SQL puo avere un nome tecnico diverso dal campo logico usato dal portale
+- puoi salvare solo il mapping runtime
+- puoi salvare solo il mapping target, ma il package mostrerà un warning esplicito
+
+### Procedura consigliata
+
+1. usa il pannello sinistro per trascinare una colonna SQL nel box `Pairing Tabella Target`
+2. trascina poi un campo logico del runtime nel box `Pairing Runtime Portale`
+3. controlla lo stato nella riga
+4. salva il pairing
+
+### Esempio pratico
+
+Caso tipico:
+
+- campo Power Automate: `EmailDipendente`
+- colonna DB target: `request_email`
+- campo runtime portale: `dipendente_email`
+
+Nel package finale troverai due blocchi distinti:
+
+```json
+{
+  "approved_target_field_mapping": {
+    "EmailDipendente": {
+      "target_field": "request_email",
+      "mapping_scope": "target_table"
+    }
+  },
+  "approved_runtime_field_mapping": {
+    "EmailDipendente": {
+      "target_field": "dipendente_email",
+      "mapping_scope": "runtime_source"
+    }
+  }
+}
+```
+
+Per un esempio completo, vedi [docs/examples/pairing-example.json](docs/examples/pairing-example.json).
+
+## Profilo Portale E Release Pubblica
+
+Per rendere il tool pubblicabile senza inchiodarlo a un solo cliente, il converter espone un profilo portale esplicito.
+
+Scelta adottata:
+
+- il tool resta pubblico e generico nella struttura
+- il comportamento specifico di Novicrom e' dichiarato come preset built-in `novicrom`
+- approval e campi runtime non sono hardcoded "a mano" nel builder, ma letti dal catalogo runtime del preset
+
+Questo permette di:
+
+- usare subito il preset `novicrom` per i moduli gia noti (`assenze`, `tasks`, `assets`, `tickets`, `anomalie`)
+- introdurre in futuro altri preset o un profilo `generic` senza rompere il formato package
+
+### Approval E Do Until
+
+Nel preset `novicrom`, il modulo `assenze` usa il workflow approvativo nativo del portale:
+
+- stato tecnico: `moderation_status`
+- valori: `2 = In attesa`, `0 = Approvato`, `1 = Rifiutato`
+- flag di bypass: `salta_approvazione`
+
+Per questo motivo il converter tratta i flow Power Automate cosi':
+
+- `CreateAnApproval` / `WaitForAnApproval`: vengono interpretati come workflow da delegare al portale, non come webhook da ricreare 1:1
+- `Do Until` usato solo per attendere l'esito approvativo: va sostituito con regole su `UPDATE` e `moderation_status`
+- `Do Until` usato per generare record derivati o spezzare intervalli: resta non convertibile automaticamente e va gestito con logica server-side o action custom
 
 ## Avvio rapido
 
@@ -109,6 +191,12 @@ La memoria locale dei suggerimenti vive in:
 
 ```text
 output/learning/mapping_memory.json
+```
+
+Il profilo locale SQL Server viene salvato in chiaro solo sulla macchina locale:
+
+```text
+output/local/sqlserver_profile.ini
 ```
 
 ## Stack e struttura

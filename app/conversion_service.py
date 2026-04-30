@@ -64,6 +64,7 @@ def analyze_flow_upload(
     payload: bytes,
     *,
     target_context: dict[str, Any] | None = None,
+    approval_template: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     flow = load_flow_definition_from_bytes(filename, payload)
     triggers = extract_trigger_summary(flow["triggers"])
@@ -81,7 +82,11 @@ def analyze_flow_upload(
         "unmatched_fields": schema_match["unmatched_fields"],
     }
     preview_markdown = build_preview(normalized)
-    package = build_automation_package(flow, input_path=Path(filename))
+    package = build_automation_package(
+        flow,
+        input_path=Path(filename),
+        approval_template=approval_template,
+    )
     safe_target_context: dict[str, Any] | None = None
 
     if target_context:
@@ -166,20 +171,23 @@ def apply_recommended_remediation(record: dict[str, Any]) -> dict[str, Any]:
     applied = updated.setdefault("remediations_applied", [])
     already = {str(item.get("code") or "") for item in applied if isinstance(item, dict)}
 
-    if "assenze-status-based-remediation" not in already:
+    if "assenze-approval-mail-conversion" not in already and package.get("approval_conversion"):
         applied.append(
             {
-                "code": "assenze-status-based-remediation",
-                "label": "Conversione approval -> regole su moderation_status",
+                "code": "assenze-approval-mail-conversion",
+                "label": "Conversione approval -> send_approval via mail",
                 "applied_at": datetime.now(UTC).isoformat(),
                 "detail": (
-                    "Il package conferma come remediation standard la sostituzione dei rami approval Power Automate "
-                    "con regole assenze basate su insert/update e `moderation_status`."
+                    "Il package usa la conversione nativa verso `send_approval` con template email approvazione "
+                    "e conserva nei branch solo le azioni supportate dal runtime."
                 ),
             }
         )
 
-    if "assenze-skip-approval-rule" not in already:
+    fields_used = {str(field or "").strip() for field in package.get("fields_used", [])}
+    has_skip_approval = "Salta_x0020_approvazione" in fields_used or "salta_approvazione" in fields_used
+
+    if "assenze-skip-approval-rule" not in already and has_skip_approval:
         proposed_rules = package.setdefault("proposed_rules", [])
         selected_codes = package.setdefault("selected_proposed_rule_codes", [])
         proposed_rules.append(
@@ -235,17 +243,22 @@ def apply_recommended_remediation(record: dict[str, Any]) -> dict[str, Any]:
         )
 
     issues = package.setdefault("issues", [])
+    remediation_detail = (
+        "La conversione ha lasciato la strategia approval principale sul nuovo `send_approval`."
+    )
+    if has_skip_approval:
+        remediation_detail = (
+            "La conversione ha aggiunto una regola audit per `salta_approvazione` e ha lasciato "
+            "la strategia approval principale sul nuovo `send_approval`."
+        )
     _append_unique_issue(
         issues,
         {
-            "code": "remediation-applied-status-rules",
+            "code": "remediation-applied-approval-mail",
             "severity": "low",
             "category": "remediation",
             "title": "Remediation automatica applicata",
-            "detail": (
-                "La conversione ha aggiunto una regola audit per `salta_approvazione` e ha consolidato "
-                "la strategia di conversione delle approval su `moderation_status`."
-            ),
+            "detail": remediation_detail,
             "remediation": "Rivedi le nuove regole draft e rifinisci i template prima dell'import nel portale target.",
         },
     )

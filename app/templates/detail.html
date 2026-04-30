@@ -149,6 +149,7 @@
       <div class="card-body">
         <div class="meta">
           Sorgente runtime: <code>{{ record.package.runtime_source_catalog.source_code }}</code><br>
+          Profilo portale: <code>{{ record.package.portal_profile.code }}</code><br>
           Label: <strong>{{ record.package.runtime_source_catalog.label }}</strong><br>
           Campi logici disponibili: {{ record.package.runtime_source_catalog.fields|length }}
         </div>
@@ -157,7 +158,7 @@
   </div>
 </div>
 
-<div class="card" style="margin-top:18px;">
+<div class="card card-pairing" style="margin-top:18px;">
   <div class="card-head">
     <div class="card-title">Pairing Drag-and-Drop</div>
   </div>
@@ -169,6 +170,39 @@
     {% set runtime_fields = record.package.runtime_source_catalog.fields if record.package.runtime_source_catalog else [] %}
     <div class="meta" style="margin-bottom:12px;">
       Il pairing e' separato su due livelli: colonne reali della tabella target e campi logici runtime della sorgente <code>{{ record.package.runtime_source_catalog.source_code }}</code>. I due mapping sono indipendenti e vengono salvati entrambi nel package finale.
+    </div>
+    <div class="pairing-guide">
+      <div class="card-subtitle">Come Usare Il Pairing</div>
+      <div class="pairing-guide-grid">
+        <div class="pairing-guide-step">
+          <strong>1. Collega la tabella target</strong>
+          Trascina una colonna dal pannello di sinistra nel riquadro <code>Pairing Tabella Target</code> quando vuoi salvare il valore del flow in una colonna reale del database.
+        </div>
+        <div class="pairing-guide-step">
+          <strong>2. Collega il runtime del portale</strong>
+          Trascina un campo logico nel riquadro <code>Pairing Runtime Portale</code>. Questo mapping serve al portale Django e puo' essere diverso dalla colonna SQL.
+        </div>
+        <div class="pairing-guide-step">
+          <strong>3. Salva anche se non e' completo</strong>
+          Solo target: package valido con warning. Solo runtime: package valido. Entrambi: scenario completo consigliato per l'import nel portale.
+        </div>
+      </div>
+      <div class="pairing-example">
+        <div class="card-subtitle" style="margin-bottom:8px;">Esempio Rapido</div>
+        <div class="meta" style="margin-bottom:8px;">
+          Lo stesso campo Power Automate puo' puntare a due destinazioni diverse.
+        </div>
+        <pre><code>Campo flow: EmailDipendente
+Target table: request_email
+Runtime portale: dipendente_email
+
+Salvataggio finale:
+- approved_target_field_mapping["EmailDipendente"].target_field = "request_email"
+- approved_runtime_field_mapping["EmailDipendente"].target_field = "dipendente_email"</code></pre>
+      </div>
+      <div class="meta">
+        La palette a sinistra resta agganciata allo scroll della pagina, cosi' i campi target e runtime restano sempre disponibili mentre scorri la griglia dei pairing.
+      </div>
     </div>
     <div class="pairing-layout">
       <div class="pairing-palette">
@@ -204,7 +238,7 @@
                 data-label="{{ field.name }} ({{ field.data_type }})"
               >
                 <strong>{{ field.label }}</strong>
-                <span>{{ field.name }} · {{ field.data_type }}</span>
+                <span>{{ field.name }} - {{ field.data_type }}</span>
               </div>
             {% endfor %}
           </div>
@@ -214,112 +248,133 @@
       </div>
 
       <form method="post" action="{{ url_for('conversion_save_mapping', record_id=record.record_id) }}" class="pairing-board">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Campo Power Automate</th>
-                <th>Pairing Tabella Target</th>
-                <th>Pairing Runtime Portale</th>
-                <th>Stato</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for source_field in record.package.fields_used %}
-                {% set target_candidate = target_candidates.get(source_field, {}) %}
-                {% set runtime_candidate = runtime_candidates.get(source_field, {}) %}
-                {% set target_entry = approved_target.get(source_field, {}) %}
-                {% set runtime_entry = approved_runtime.get(source_field, {}) %}
-                {% set target_selected = target_entry.target_field or target_candidate.target_field %}
-                {% set runtime_selected = runtime_entry.target_field or runtime_candidate.target_field %}
-                {% set target_select_id = 'target-map-' ~ loop.index0 %}
-                {% set runtime_select_id = 'runtime-map-' ~ loop.index0 %}
-                <tr>
-                  <td>
-                    <input type="hidden" name="source_fields" value="{{ source_field }}">
-                    <code>{{ source_field }}</code>
-                  </td>
-                  <td>
-                    {% if record.package.table_columns %}
-                      <div class="pairing-dropzone" data-select-id="{{ target_select_id }}" data-scope="target_table">
-                        <div class="dropzone-label">Drop colonna target</div>
-                        <div class="dropzone-value" data-empty-label="Trascina una colonna oppure usa il selettore">
-                          {% if target_selected %}
-                            <code>{{ target_selected }}</code>
-                          {% else %}
-                            <span class="meta">Trascina una colonna oppure usa il selettore</span>
-                          {% endif %}
-                        </div>
-                      </div>
-                      <div class="pairing-meta">
-                        Suggerito:
-                        {% if target_candidate.target_field %}
-                          <code>{{ target_candidate.target_field }}</code>
-                        {% else %}
-                          <span class="meta">nessun suggerimento forte</span>
-                        {% endif %}
-                        <span class="pill pill-{{ 'full' if target_candidate.confidence in ['approved', 'high'] else target_candidate.confidence or 'low' }}">{{ target_candidate.confidence or 'low' }}</span>
-                      </div>
-                      <div class="meta">{{ target_candidate.note or target_candidate.reason or '-' }}</div>
-                      <div class="pairing-controls">
-                        <select id="{{ target_select_id }}" name="target_mapping__{{ source_field }}" class="pairing-select">
-                          <option value="">-- non mappare alla tabella --</option>
-                          {% for column in record.package.table_columns %}
-                            <option value="{{ column.name }}" {% if target_selected == column.name %}selected{% endif %}>{{ column.name }} ({{ column.data_type }})</option>
-                          {% endfor %}
-                        </select>
-                        <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ target_select_id }}">Rimuovi</button>
-                      </div>
-                    {% else %}
-                      <div class="meta">Nessuna tabella target selezionata per questo record.</div>
-                    {% endif %}
-                  </td>
-                  <td>
-                    <div class="pairing-dropzone" data-select-id="{{ runtime_select_id }}" data-scope="runtime_source">
-                      <div class="dropzone-label">Drop campo runtime</div>
-                      <div class="dropzone-value" data-empty-label="Trascina un campo runtime oppure usa il selettore">
-                        {% if runtime_selected %}
-                          <code>{{ runtime_selected }}</code>
-                        {% else %}
-                          <span class="meta">Trascina un campo runtime oppure usa il selettore</span>
-                        {% endif %}
-                      </div>
-                    </div>
-                    <div class="pairing-meta">
-                      Suggerito:
-                      {% if runtime_candidate.target_field %}
-                        <code>{{ runtime_candidate.target_field }}</code>
+        <div class="pairing-toolbar">
+          <div class="pairing-legend">
+            <span class="pairing-legend-chip pairing-legend-target">target table</span>
+            <span class="pairing-legend-chip pairing-legend-runtime">runtime portal</span>
+            <span class="pairing-legend-chip pairing-legend-review">da completare</span>
+          </div>
+          <div class="pairing-toolbar-actions">
+            <label class="checkbox pairing-filter-toggle">
+              <input type="checkbox" id="pairing-filter-incomplete">
+              Mostra solo pairing incompleti
+            </label>
+            <div class="pairing-toolbar-meta">
+              <span id="pairing-visible-count">{{ record.package.fields_used|length }} campi visibili</span>
+              <span id="pairing-incomplete-count"></span>
+            </div>
+          </div>
+        </div>
+        <div class="pairing-board-header">
+          <div class="pairing-column-title">Campo Power Automate</div>
+          <div class="pairing-column-title">Pairing Tabella Target</div>
+          <div class="pairing-column-title">Pairing Runtime Portale</div>
+        </div>
+        <div class="pairing-rows">
+          {% for source_field in record.package.fields_used %}
+            {% set target_candidate = target_candidates.get(source_field, {}) %}
+            {% set runtime_candidate = runtime_candidates.get(source_field, {}) %}
+            {% set target_entry = approved_target.get(source_field, {}) %}
+            {% set runtime_entry = approved_runtime.get(source_field, {}) %}
+            {% set target_selected = target_entry.target_field or target_candidate.target_field %}
+            {% set runtime_selected = runtime_entry.target_field or runtime_candidate.target_field %}
+            {% set target_select_id = 'target-map-' ~ loop.index0 %}
+            {% set runtime_select_id = 'runtime-map-' ~ loop.index0 %}
+            <div
+              class="pairing-row"
+              data-target-select-id="{{ target_select_id }}"
+              data-runtime-select-id="{{ runtime_select_id }}"
+              data-target-filled="{{ 'true' if target_selected else 'false' }}"
+              data-runtime-filled="{{ 'true' if runtime_selected else 'false' }}"
+              data-incomplete="{{ 'true' if not target_selected or not runtime_selected else 'false' }}"
+            >
+              <div class="pairing-source-card">
+                <input type="hidden" name="source_fields" value="{{ source_field }}">
+                <div class="pairing-source-label">Campo Flow</div>
+                <div class="pairing-source-name"><code>{{ source_field }}</code></div>
+                <div class="pairing-status-stack">
+                  <span class="pill pill-full pairing-status-target" {% if not target_selected %}hidden{% endif %}>target</span>
+                  <span class="pill pairing-status-runtime" {% if not runtime_selected %}hidden{% endif %}>runtime</span>
+                  <span class="pill pairing-status-review" {% if target_selected or runtime_selected %}hidden{% endif %}>da rivedere</span>
+                </div>
+                <div class="warning-note" {% if not (target_selected and not runtime_selected) %}hidden{% endif %}>Warning: pairing target presente ma runtime assente.</div>
+              </div>
+
+              <div class="pairing-slot pairing-slot-target">
+                <div class="pairing-slot-head">
+                  <div class="pairing-slot-title">Pairing Tabella Target</div>
+                  <span class="pill pill-{{ 'full' if target_candidate.confidence in ['approved', 'high'] else target_candidate.confidence or 'low' }}">{{ target_candidate.confidence or 'low' }}</span>
+                </div>
+                {% if record.package.table_columns %}
+                  <div class="pairing-dropzone" data-select-id="{{ target_select_id }}" data-scope="target_table">
+                    <div class="dropzone-label">Drop colonna target</div>
+                    <div class="dropzone-value" data-empty-label="Trascina una colonna oppure usa il selettore">
+                      {% if target_selected %}
+                        <code>{{ target_selected }}</code>
                       {% else %}
-                        <span class="meta">nessun suggerimento runtime</span>
+                        <span class="meta">Trascina una colonna oppure usa il selettore</span>
                       {% endif %}
-                      <span class="pill pill-{{ 'full' if runtime_candidate.confidence in ['approved', 'high'] else runtime_candidate.confidence or 'low' }}">{{ runtime_candidate.confidence or 'low' }}</span>
                     </div>
-                    <div class="meta">{{ runtime_candidate.note or runtime_candidate.reason or '-' }}</div>
-                    <div class="pairing-controls">
-                      <select id="{{ runtime_select_id }}" name="runtime_mapping__{{ source_field }}" class="pairing-select">
-                        <option value="">-- non mappare al runtime --</option>
-                        {% for field in runtime_fields %}
-                          <option value="{{ field.name }}" {% if runtime_selected == field.name %}selected{% endif %}>{{ field.label }} ({{ field.name }})</option>
-                        {% endfor %}
-                      </select>
-                      <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ runtime_select_id }}">Rimuovi</button>
-                    </div>
-                  </td>
-                  <td>
-                    {% if target_selected %}
-                      <div><span class="pill pill-full">target</span></div>
+                  </div>
+                  <div class="pairing-meta">
+                    <strong>Suggerito:</strong>
+                    {% if target_candidate.target_field %}
+                      <code>{{ target_candidate.target_field }}</code>
+                    {% else %}
+                      <span class="meta">nessun suggerimento forte</span>
                     {% endif %}
+                  </div>
+                  <div class="pairing-note">{{ target_candidate.note or target_candidate.reason or '-' }}</div>
+                  <div class="pairing-controls">
+                    <select id="{{ target_select_id }}" name="target_mapping__{{ source_field }}" class="pairing-select">
+                      <option value="">-- non mappare alla tabella --</option>
+                      {% for column in record.package.table_columns %}
+                        <option value="{{ column.name }}" {% if target_selected == column.name %}selected{% endif %}>{{ column.name }} ({{ column.data_type }})</option>
+                      {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ target_select_id }}">Rimuovi</button>
+                  </div>
+                {% else %}
+                  <div class="pairing-empty">Nessuna tabella target selezionata per questo record.</div>
+                {% endif %}
+              </div>
+
+              <div class="pairing-slot pairing-slot-runtime">
+                <div class="pairing-slot-head">
+                  <div class="pairing-slot-title">Pairing Runtime Portale</div>
+                  <span class="pill pill-{{ 'full' if runtime_candidate.confidence in ['approved', 'high'] else runtime_candidate.confidence or 'low' }}">{{ runtime_candidate.confidence or 'low' }}</span>
+                </div>
+                <div class="pairing-dropzone" data-select-id="{{ runtime_select_id }}" data-scope="runtime_source">
+                  <div class="dropzone-label">Drop campo runtime</div>
+                  <div class="dropzone-value" data-empty-label="Trascina un campo runtime oppure usa il selettore">
                     {% if runtime_selected %}
-                      <div style="margin-top:6px;"><span class="pill pill-low">runtime</span></div>
+                      <code>{{ runtime_selected }}</code>
+                    {% else %}
+                      <span class="meta">Trascina un campo runtime oppure usa il selettore</span>
                     {% endif %}
-                    {% if target_selected and not runtime_selected %}
-                      <div class="warning-note" style="margin-top:8px;">Warning: pairing target presente ma runtime assente.</div>
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+                <div class="pairing-meta">
+                  <strong>Suggerito:</strong>
+                  {% if runtime_candidate.target_field %}
+                    <code>{{ runtime_candidate.target_field }}</code>
+                  {% else %}
+                    <span class="meta">nessun suggerimento runtime</span>
+                  {% endif %}
+                </div>
+                <div class="pairing-note">{{ runtime_candidate.note or runtime_candidate.reason or '-' }}</div>
+                <div class="pairing-controls">
+                  <select id="{{ runtime_select_id }}" name="runtime_mapping__{{ source_field }}" class="pairing-select">
+                    <option value="">-- non mappare al runtime --</option>
+                    {% for field in runtime_fields %}
+                      <option value="{{ field.name }}" {% if runtime_selected == field.name %}selected{% endif %}>{{ field.label }} ({{ field.name }})</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-ghost pairing-clear" data-select-id="{{ runtime_select_id }}">Rimuovi</button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
         </div>
         <div class="meta" style="margin-top:12px;">
           Le conferme sulla tabella target vengono salvate localmente e riutilizzate per migliorare i suggerimenti futuri su tabelle simili.
@@ -347,12 +402,81 @@
         const dragTokens = document.querySelectorAll(".drag-token");
         const dropzones = document.querySelectorAll(".pairing-dropzone");
         const clearButtons = document.querySelectorAll(".pairing-clear");
+        const rows = Array.from(document.querySelectorAll(".pairing-row"));
+        const filterToggle = document.getElementById("pairing-filter-incomplete");
+        const visibleCount = document.getElementById("pairing-visible-count");
+        const incompleteCount = document.getElementById("pairing-incomplete-count");
         const parsePayload = (raw) => {
           try {
             return JSON.parse(raw);
           } catch (error) {
             return null;
           }
+        };
+
+        const getRowSelects = (row) => {
+          if (!row) {
+            return {};
+          }
+          return {
+            target: document.getElementById(row.dataset.targetSelectId),
+            runtime: document.getElementById(row.dataset.runtimeSelectId),
+          };
+        };
+
+        const updateToolbar = () => {
+          const visibleRows = rows.filter((row) => !row.classList.contains("is-hidden")).length;
+          const incompleteRows = rows.filter((row) => row.dataset.incomplete === "true").length;
+          if (visibleCount) {
+            visibleCount.textContent = `${visibleRows} ${visibleRows === 1 ? "campo visibile" : "campi visibili"}`;
+          }
+          if (incompleteCount) {
+            incompleteCount.textContent = incompleteRows
+              ? `${incompleteRows} pairing da completare`
+              : "nessun pairing incompleto";
+          }
+        };
+
+        const applyFilter = () => {
+          const onlyIncomplete = Boolean(filterToggle && filterToggle.checked);
+          rows.forEach((row) => {
+            const hideRow = onlyIncomplete && row.dataset.incomplete !== "true";
+            row.classList.toggle("is-hidden", hideRow);
+          });
+          updateToolbar();
+        };
+
+        const updateRowState = (row) => {
+          if (!row) {
+            return;
+          }
+          const { target, runtime } = getRowSelects(row);
+          const hasTarget = Boolean(target && target.value);
+          const hasRuntime = Boolean(runtime && runtime.value);
+          row.dataset.targetFilled = hasTarget ? "true" : "false";
+          row.dataset.runtimeFilled = hasRuntime ? "true" : "false";
+          row.dataset.incomplete = !hasTarget || !hasRuntime ? "true" : "false";
+          row.classList.toggle("is-complete", hasTarget && hasRuntime);
+
+          const targetBadge = row.querySelector(".pairing-status-target");
+          const runtimeBadge = row.querySelector(".pairing-status-runtime");
+          const reviewBadge = row.querySelector(".pairing-status-review");
+          const warning = row.querySelector(".warning-note");
+
+          if (targetBadge) {
+            targetBadge.hidden = !hasTarget;
+          }
+          if (runtimeBadge) {
+            runtimeBadge.hidden = !hasRuntime;
+          }
+          if (reviewBadge) {
+            reviewBadge.hidden = hasTarget || hasRuntime;
+          }
+          if (warning) {
+            warning.hidden = !(hasTarget && !hasRuntime);
+          }
+
+          applyFilter();
         };
 
         const syncDropzone = (select) => {
@@ -376,6 +500,7 @@
             span.textContent = valueNode.dataset.emptyLabel;
             valueNode.appendChild(span);
           }
+          updateRowState(select.closest(".pairing-row"));
         };
 
         dragTokens.forEach((token) => {
@@ -440,6 +565,11 @@
             syncDropzone(select);
           });
         });
+
+        if (filterToggle) {
+          filterToggle.addEventListener("change", applyFilter);
+        }
+        updateToolbar();
       })();
     </script>
   </div>
@@ -448,82 +578,197 @@
 
 <div class="card" style="margin-top:18px;">
   <div class="card-head">
-    <div class="card-title">Diagramma del Flusso</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div class="card-title">Diagramma del Flusso Power Automate</div>
+      <div class="btn-row" style="margin:0;">
+        <button class="btn btn-ghost" id="diag-zoom-in" type="button">＋</button>
+        <button class="btn btn-ghost" id="diag-zoom-out" type="button">－</button>
+        <button class="btn btn-ghost" id="diag-reset" type="button">↺ Reset</button>
+      </div>
+    </div>
   </div>
   <div class="card-body">
     <div class="meta" style="margin-bottom:12px;">
-      Vista di consultazione del flow, utile per confronto rapido con Power Automate. I nodi mostrano trigger, azioni e rami principali senza modalita' drag-and-drop.
+      Rappresentazione visiva del flow originale. <strong>Trascina</strong> per navigare, <strong>rotella</strong> per zoomare. I nodi rispecchiano trigger, azioni e rami del flow Power Automate.
     </div>
-    <div class="btn-row" style="margin-bottom:12px;">
-      <span class="pill pill-full">trigger / ok</span>
+    <div class="btn-row" style="margin-bottom:16px;">
+      <span class="pill pill-full">trigger</span>
+      <span class="pill pill-low">API / azione</span>
       <span class="pill pill-medium">loop / branch</span>
-      <span class="pill pill-high">blocchi critici</span>
+      <span class="pill pill-high">webhook / approval</span>
     </div>
     {% if record.normalized.diagram and record.normalized.diagram.nodes %}
-      <div class="diagram-wrap">
-        <svg viewBox="0 0 {{ record.normalized.diagram.width }} {{ record.normalized.diagram.height }}" role="img" aria-label="Diagramma del flusso">
+      <div class="diagram-wrap" id="diagram-container">
+        <svg
+          id="diagram-svg"
+          width="{{ record.normalized.diagram.width }}"
+          height="{{ record.normalized.diagram.height }}"
+          style="display:block;"
+          role="img"
+          aria-label="Diagramma del flusso Power Automate"
+        >
           <defs>
-            <marker id="arrow-head" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"></path>
+            <filter id="node-shadow" x="-15%" y="-15%" width="130%" height="140%">
+              <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="rgba(40,32,18,.12)"/>
+            </filter>
+            <marker id="arrow-main" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#334155"/>
+            </marker>
+            <marker id="arrow-branch" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#6366f1"/>
             </marker>
           </defs>
 
-          {% for lane in record.normalized.diagram.lanes %}
-            <rect
-              x="{{ lane.x }}"
-              y="{{ lane.y }}"
-              rx="18"
-              ry="18"
-              width="{{ lane.width }}"
-              height="{{ lane.height }}"
-              fill="{{ lane.fill }}"
-              stroke="{{ lane.stroke }}"
-              stroke-width="1.5"
-              stroke-dasharray="6 4"
-            />
-            <text x="{{ lane.x + 16 }}" y="{{ lane.y + 22 }}" class="diagram-lane-label">{{ lane.label }}</text>
-          {% endfor %}
+          <g id="diag-viewport">
+            {% for lane in record.normalized.diagram.lanes %}
+              <rect
+                x="{{ lane.x }}" y="{{ lane.y }}"
+                rx="20" ry="20"
+                width="{{ lane.width }}" height="{{ lane.height }}"
+                fill="{{ lane.fill }}" stroke="{{ lane.stroke }}"
+                stroke-width="1.5" stroke-dasharray="6 4"
+              />
+              <text x="{{ lane.x + 18 }}" y="{{ lane.y + 20 }}" class="diagram-lane-label">{{ lane.label }}</text>
+            {% endfor %}
 
-          {% for edge in record.normalized.diagram.edges %}
-            <line
-              x1="{{ edge.x1 }}"
-              y1="{{ edge.y1 }}"
-              x2="{{ edge.x2 }}"
-              y2="{{ edge.y2 }}"
-              stroke="#334155"
-              stroke-width="2"
-              marker-end="url(#arrow-head)"
-            />
-            {% if edge.label %}
-              <text x="{{ edge.label_x }}" y="{{ edge.label_y }}" text-anchor="middle" class="diagram-label">{{ edge.label }}</text>
-            {% endif %}
-          {% endfor %}
+            {% for edge in record.normalized.diagram.edges %}
+              {% if edge.label %}
+                <path
+                  d="M {{ edge.x1 }} {{ edge.y1 }} C {{ edge.label_x }} {{ edge.y1 }}, {{ edge.label_x }} {{ edge.y2 }}, {{ edge.x2 }} {{ edge.y2 }}"
+                  stroke="#6366f1" stroke-width="2" fill="none"
+                  stroke-dasharray="5 3"
+                  marker-end="url(#arrow-branch)"
+                />
+                <rect x="{{ edge.label_x - 22 }}" y="{{ edge.label_y - 9 }}" width="44" height="16" rx="8" fill="rgba(238,242,255,.95)" stroke="#c7d2fe" stroke-width="1"/>
+                <text x="{{ edge.label_x }}" y="{{ edge.label_y + 3 }}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:#4f46e5;letter-spacing:.04em;">{{ edge.label }}</text>
+              {% else %}
+                <path
+                  d="M {{ edge.x1 }} {{ edge.y1 }} C {{ edge.label_x }} {{ edge.y1 }}, {{ edge.label_x }} {{ edge.y2 }}, {{ edge.x2 }} {{ edge.y2 }}"
+                  stroke="#334155" stroke-width="2" fill="none"
+                  marker-end="url(#arrow-main)"
+                />
+              {% endif %}
+            {% endfor %}
 
-          {% for node in record.normalized.diagram.nodes %}
-            <rect
-              x="{{ node.x }}"
-              y="{{ node.y }}"
-              rx="20"
-              ry="20"
-              width="{{ node.width }}"
-              height="{{ node.height }}"
-              fill="{{ node.fill }}"
-              stroke="{{ node.stroke }}"
-              stroke-width="2"
-            />
-            <circle cx="{{ node.x + 20 }}" cy="{{ node.y + 20 }}" r="12" fill="{{ node.stroke }}"></circle>
-            <text x="{{ node.x + 20 }}" y="{{ node.y + 24 }}" text-anchor="middle" class="diagram-node-icon">{{ node.icon }}</text>
-            <text x="{{ node.x + 40 }}" y="{{ node.y + 28 }}" class="diagram-node-title">{{ node.lines[0] }}</text>
-            <text x="{{ node.x + 40 }}" y="{{ node.y + 48 }}" class="diagram-node-subtitle">{{ node.lines[1] }}</text>
-            {% if node.branch and node.branch != 'main' %}
-              <text x="{{ node.x + node.width - 16 }}" y="{{ node.y + 22 }}" text-anchor="end" class="diagram-label">{{ node.branch }}</text>
-            {% endif %}
-            {% if node.issue_badge %}
-              <text x="{{ node.x + node.width - 16 }}" y="{{ node.y + node.height - 14 }}" text-anchor="end" class="diagram-issue-badge">{{ node.issue_badge }}</text>
-            {% endif %}
-          {% endfor %}
+            {% for node in record.normalized.diagram.nodes %}
+              <g>
+                <!-- Card shadow + body -->
+                <rect
+                  x="{{ node.x }}" y="{{ node.y }}"
+                  rx="16" ry="16"
+                  width="{{ node.width }}" height="{{ node.height }}"
+                  fill="{{ node.fill }}" stroke="{{ node.stroke }}"
+                  stroke-width="2"
+                  filter="url(#node-shadow)"
+                />
+                <!-- Left color strip (clip-path workaround: two rects) -->
+                <rect x="{{ node.x }}" y="{{ node.y }}" rx="16" ry="16" width="36" height="{{ node.height }}" fill="{{ node.stroke }}" opacity=".9"/>
+                <rect x="{{ node.x + 16 }}" y="{{ node.y }}" width="20" height="{{ node.height }}" fill="{{ node.stroke }}" opacity=".9"/>
+                <!-- Icon centered on strip -->
+                <text x="{{ node.x + 18 }}" y="{{ node.y + (node.height // 2) + 4 }}" text-anchor="middle" class="diagram-node-icon">{{ node.icon }}</text>
+                <!-- Node labels -->
+                <text x="{{ node.x + 46 }}" y="{{ node.y + 30 }}" class="diagram-node-title">{{ node.lines[0] }}</text>
+                <text x="{{ node.x + 46 }}" y="{{ node.y + 50 }}" class="diagram-node-subtitle">{{ node.lines[1] }}</text>
+                {% if node.issue_badge %}
+                  <rect x="{{ node.x + node.width - 54 }}" y="{{ node.y + node.height - 24 }}" width="48" height="17" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+                  <text x="{{ node.x + node.width - 30 }}" y="{{ node.y + node.height - 12 }}" text-anchor="middle" class="diagram-issue-badge">{{ node.issue_badge }}</text>
+                {% endif %}
+              </g>
+            {% endfor %}
+          </g>
         </svg>
       </div>
+
+      <script>
+      (() => {
+        const container = document.getElementById('diagram-container');
+        const svg = document.getElementById('diagram-svg');
+        const viewport = document.getElementById('diag-viewport');
+        if (!container || !svg || !viewport) return;
+
+        const svgW = parseInt(svg.getAttribute('width'), 10);
+        const svgH = parseInt(svg.getAttribute('height'), 10);
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let dragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        const MIN_SCALE = 0.15;
+        const MAX_SCALE = 3;
+
+        const applyTransform = () => {
+          viewport.setAttribute('transform', `translate(${panX},${panY}) scale(${scale})`);
+        };
+
+        // Fit to container on load
+        const fitToContainer = () => {
+          const cW = container.clientWidth || 800;
+          const cH = Math.max(container.clientHeight, 320);
+          const fit = Math.min(cW / svgW, cH / svgH, 1);
+          scale = fit;
+          panX = (cW - svgW * fit) / 2;
+          panY = (cH - svgH * fit) / 2;
+          applyTransform();
+        };
+
+        // Set container height proportional to content, capped at 560px
+        const targetH = Math.min(Math.round(svgH * 0.9), 560);
+        container.style.height = Math.max(targetH, 280) + 'px';
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+
+        fitToContainer();
+
+        container.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const factor = e.deltaY < 0 ? 1.12 : 0.88;
+          const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+          const rect = container.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          panX = mx - (mx - panX) * (newScale / scale);
+          panY = my - (my - panY) * (newScale / scale);
+          scale = newScale;
+          applyTransform();
+        }, { passive: false });
+
+        container.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          dragging = true;
+          lastX = e.clientX;
+          lastY = e.clientY;
+          container.style.cursor = 'grabbing';
+          e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (!dragging) return;
+          panX += e.clientX - lastX;
+          panY += e.clientY - lastY;
+          lastX = e.clientX;
+          lastY = e.clientY;
+          applyTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (!dragging) return;
+          dragging = false;
+          container.style.cursor = 'grab';
+        });
+
+        document.getElementById('diag-zoom-in')?.addEventListener('click', () => {
+          scale = Math.min(MAX_SCALE, scale * 1.2);
+          applyTransform();
+        });
+        document.getElementById('diag-zoom-out')?.addEventListener('click', () => {
+          scale = Math.max(MIN_SCALE, scale / 1.2);
+          applyTransform();
+        });
+        document.getElementById('diag-reset')?.addEventListener('click', fitToContainer);
+      })();
+      </script>
     {% else %}
       <div class="meta">Diagramma non disponibile per questo record.</div>
     {% endif %}

@@ -1,0 +1,53 @@
+{
+  "target_context": {
+    "db_type": "sqlserver",
+    "server": "localhost\\SQLEXPRESS",
+    "database": "PORTALE NOVICROM",
+    "schema": "dbo",
+    "table": "assenze",
+    "full_name": "dbo.assenze"
+  },
+  "runtime_source_catalog": {
+    "source_code": "assenze",
+    "label": "Assenze",
+    "fields": [
+      {
+        "name": "dipendente_email",
+        "label": "Dipendente email",
+        "data_type": "string"
+      },
+      {
+        "name": "data_inizio",
+        "label": "Data inizio",
+        "data_type": "datetime"
+      }
+    ]
+  },
+  "approved_target_field_mapping": {
+    "EmailDipendente": {
+      "target_field": "request_email",
+      "mapping_scope": "target_table",
+      "confidence": "approved",
+      "note": "email salvata nella colonna SQL dedicata"
+    },
+    "Data_x0020_inizio": {
+      "target_field": "start_date",
+      "mapping_scope": "target_table",
+      "confidence": "approved"
+    }
+  },
+  "approved_runtime_field_mapping": {
+    "EmailDipendente": {
+      "target_field": "dipendente_email",
+      "mapping_scope": "runtime_source",
+      "confidence": "approved",
+      "note": "campo logico usato dal portale per inviare notifiche"
+    },
+    "Data_x0020_inizio": {
+      "target_field": "data_inizio",
+      "mapping_scope": "runtime_source",
+      "confidence": "approved"
+    }
+  },
+  "mapping_warnings": []
+}

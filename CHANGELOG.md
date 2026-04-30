@@ -4,6 +4,9 @@ Questo progetto segue un changelog semplice in stile semver, pensato per un repo
 
 ## Unreleased
 
+- **[feature] Diagramma interattivo pan+zoom**: il diagramma del flusso Power Automate nella pagina di dettaglio ora supporta zoom con rotella del mouse, pan via drag, e pulsanti ＋/－/↺ Reset; all'apertura il flow viene adattato automaticamente alla larghezza della card.
+- **[improvement] Nodi card-style nel diagramma**: i nodi SVG sono stati ridisegnati con strip colorata laterale e icona tipo Power Automate, drop shadow, e distinzione visiva per trigger, API, loop e webhook.
+- **[improvement] Connettori bezier nel diagramma**: le frecce tra nodi usano ora curve bezier invece di linee dritte; i rami condizionali (`else`, `case:*`) sono evidenziati in viola tratteggiato con etichetta su sfondo pastello.
 - **[feature] Wizard SQL Server guidato**: la standalone ora parte da una connessione guidata a SQL Server, mostra le tabelle disponibili e permette di scegliere la tabella target prima del caricamento del flow.
 - **[feature] Mapping visuale confermabile**: aggiunta la revisione visiva del merge `campo Power Automate -> colonna database`, con conferma o correzione manuale direttamente dalla UI.
 - **[feature] Apprendimento locale dei mapping**: le conferme dell'utente vengono salvate in memoria locale e riutilizzate per aumentare la confidenza dei suggerimenti futuri.
